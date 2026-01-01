@@ -1,5 +1,5 @@
 ﻿using Domain.Orders;
-namespace Infrastructure.Repositories
+namespace Infrastructure.Persistence.Repositories
 {
     public sealed class InMemoryOrderRepository : IOrderRepository
     {

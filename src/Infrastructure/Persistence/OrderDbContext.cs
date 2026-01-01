@@ -3,7 +3,7 @@ using Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure; // Add this using directive for DbContextOptions
 
-namespace Infrastructure
+namespace Infrastructure.Persistence
 {
     public sealed class OrderDbContext : DbContext
     {

@@ -2,7 +2,7 @@
 using Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Persistence
+namespace Infrastructure.Persistence.Repositories
 {
     public sealed class EfOrderRepository : IOrderRepository
     {
