@@ -1,9 +1,8 @@
 namespace Order.DTO
 {
-    public sealed class CreateOrderItemRequest
-    {
-        public string? ProductName { get; init; }
-        public int Quantity { get; init; }
-        public decimal UnitPrice { get; init; }
-    }
+    public sealed record CreateOrderItemRequest(
+    string ProductName,
+    int Quantity,
+    decimal UnitPriceAmount,
+    string Currency);
 }

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Domain.Orders;
 
 public sealed class OrderItem
@@ -8,6 +10,10 @@ public sealed class OrderItem
     public Money UnitPrice { get; }
 
     public Money TotalPrice => UnitPrice.Multiply(Quantity);
+
+
+    // EF Core only
+    private OrderItem() { }
 
     internal OrderItem(string productName, int quantity, Money unitPrice)
     {

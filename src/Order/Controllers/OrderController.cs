@@ -1,7 +1,7 @@
-﻿using Domain.Contracts;
-using Domain.Orders;
+﻿using Domain.Orders;
 using Microsoft.AspNetCore.Mvc;
 using Order.DTO;
+using System.Runtime.CompilerServices;
 
 namespace Order.Controllers
 {
@@ -14,10 +14,6 @@ namespace Order.Controllers
 
         public OrderController(IOrderRepository repo, ILogger<OrderController> logger)
         {
-            var seenOrders = new HashSet<OrderDto>();
-
-            seenOrders.Add(new OrderDto(1, 100));
-            seenOrders.Add(new OrderDto(1, 100));
             _repo = repo;
             _logger = logger;
         }
@@ -36,7 +32,7 @@ namespace Order.Controllers
             Domain.Orders.Order order;
             try
             {
-                order = MapToOrder(request);
+                order = OrderMapping.ToDomain(request);
             }
             catch (ArgumentException ex)
             {
@@ -46,9 +42,9 @@ namespace Order.Controllers
             await _repo.AddAsync(order, ct);
             await _repo.SaveChangesAsync(ct);
 
-            _logger.LogInformation("Order created. Id={OrderId}, Customer={CustomerName}", (Guid)order.Id, order.CustomerName);
+            _logger.LogInformation("Order created. Id={OrderId}, Customer={CustomerName}", order.Id, order.CustomerName);
 
-            var response = MapToResponse(order);
+            var response = OrderMapping.ToDto(order);
             return CreatedAtAction(nameof(GetById), new { id = order.Id }, response);
         }
 
@@ -58,11 +54,11 @@ namespace Order.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken ct)
         {
-            var order = await _repo.GetByIdAsync((OrderId)id, ct);
+            var order = await _repo.GetByIdAsync(new OrderId(id), ct);
             if (order is null)
                 return NotFound();
 
-            return Ok(MapToResponse(order));
+            return Ok(OrderMapping.ToDto(order));
         }
 
         // GET /orders
@@ -71,37 +67,36 @@ namespace Order.Controllers
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
             var orders = await _repo.GetAllAsync(ct);
-            var response = orders.Select(MapToResponse).ToList();
-            return Ok(response);
+            return Ok(orders);
         }
 
-        // PUT /orders/{id}/status
-        [HttpPut("{id:guid}/status")]
-        [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> ChangeStatus([FromRoute] Guid id, [FromBody] ChangeOrderStatusRequest request, CancellationToken ct)
-        {
-            var order = await _repo.GetByIdAsync((OrderId)id, ct);
-            if (order is null)
-                return NotFound();
+        //// PUT /orders/{id}/status
+        //[HttpPut("{id:guid}/status")]
+        //[ProducesResponseType(typeof(OrderResponse), StatusCodes.Status200OK)]
+        //[ProducesResponseType(StatusCodes.Status400BadRequest)]
+        //[ProducesResponseType(StatusCodes.Status404NotFound)]
+        //public async Task<IActionResult> ChangeStatus([FromRoute] Guid id, [FromBody] ChangeOrderStatusRequest request, CancellationToken ct)
+        //{
+        //    var order = await _repo.GetByIdAsync(new OrderId(id), ct);
+        //    if (order is null)
+        //        return NotFound();
 
-            try
-            {
-                ApplyStatusChange(order, request.NewStatus);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Could also be 409 Conflict; for live coding 400 is acceptable
-                return BadRequest(ex.Message);
-            }
+        //    try
+        //    {
+        //        ApplyStatusChange(order, request.NewStatus);
+        //    }
+        //    catch (InvalidOperationException ex)
+        //    {
+        //        // Could also be 409 Conflict; for live coding 400 is acceptable
+        //        return BadRequest(ex.Message);
+        //    }
 
-            await _repo.SaveChangesAsync(ct);
+        //    await _repo.SaveChangesAsync(ct);
 
-            _logger.LogInformation("Order status changed. Id={OrderId}, Status={Status}", (Guid)order.Id, order.Status);
+        //    _logger.LogInformation("Order status changed. Id={OrderId}, Status={Status}", order.Id, order.Status);
 
-            return Ok(MapToResponse(order));
-        }
+        //    return Ok(MapToResponse(order));
+        //}
 
         // ---------- Helpers ----------
 
@@ -119,65 +114,15 @@ namespace Order.Controllers
             if (request.Items.Any(i => i.Quantity <= 0))
                 return new BadRequestObjectResult("Quantity must be greater than zero.");
 
-            if (request.Items.Any(i => i.UnitPrice <= 0))
+            if (request.Items.Any(i => i.UnitPriceAmount <= 0))
                 return new BadRequestObjectResult("UnitPrice must be greater than zero.");
 
             return null;
         }
 
-        private static Domain.Orders.Order MapToOrder(CreateOrderRequest request)
-        {
-            var items = request.Items!
-                .Select(i => new Domain.Orders.OrderItem(i.ProductName!, i.Quantity, Domain.Orders.Money.FromDecimal(i.UnitPrice)))
-                .ToList();
 
-            return new Domain.Orders.Order(request.CustomerName!, items);
-        }
+        
 
-        private static OrderResponse MapToResponse(Domain.Orders.Order order)
-        {
-            return new OrderResponse
-            {
-                Id = order.Id,
-                CustomerName = order.CustomerName,
-                CreatedAt = order.CreatedAt,
-                Status = order.Status,
-                Items = order.Items.Select(i => new OrderItemResponse
-                {
-                    ProductName = i.ProductName,
-                    Quantity = i.Quantity,
-                    UnitPrice = i.UnitPrice.Amount
-                }).ToList()
-            };
-        }
-
-        private static void ApplyStatusChange(Domain.Orders.Order order, OrderStatus newStatus)
-        {
-            // Only allow:
-            // Created -> Confirmed
-            // Confirmed -> Shipped
-            if (newStatus == OrderStatus.Confirmed)
-            {
-                order.Confirm();
-                return;
-            }
-
-            if (newStatus == OrderStatus.Shipped)
-            {
-                order.Ship();
-                return;
-            }
-
-            // Not allowing changing back to Created in this exercise
-            throw new InvalidOperationException("Invalid status transition.");
-        }
     }
 
-    internal record OrderDto(int v1, int v2);
-
-    // DTO for status change
-    public sealed class ChangeOrderStatusRequest
-    {
-        public OrderStatus NewStatus { get; init; }
-    }
 }

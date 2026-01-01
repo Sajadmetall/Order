@@ -1,5 +1,4 @@
-﻿using Domain.Contracts;
-using Domain.Orders;
+﻿using Domain.Orders;
 namespace Infrastructure.Repositories
 {
     public sealed class InMemoryOrderRepository : IOrderRepository
