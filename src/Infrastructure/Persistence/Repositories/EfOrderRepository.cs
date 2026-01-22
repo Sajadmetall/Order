@@ -28,6 +28,7 @@ namespace Infrastructure.Persistence.Repositories
         public async Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken ct = default)
         {
             return await _db.Orders
+                .Include(i=> i.Items).Where(o=> o.Status != OrderStatus.Confirmed )
                 .AsNoTracking()
                 .ToListAsync(ct);
         }

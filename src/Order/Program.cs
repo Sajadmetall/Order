@@ -3,6 +3,7 @@ using Infrastructure.Persistence;
 using Infrastructure.Persistence.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Order;
+using Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();
 // Register middlewares before Build (DI registrations must happen before Build)
 builder.Services.AddTransient<ExceptionHandlingMiddleware>();
 builder.Services.AddTransient<CorrelationIdMiddleware>();
@@ -59,6 +61,8 @@ if (app.Environment.IsDevelopment())
 //}
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
