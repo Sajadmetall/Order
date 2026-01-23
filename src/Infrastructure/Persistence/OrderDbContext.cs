@@ -1,11 +1,12 @@
 ﻿using System;
+using Application.Abstractions.Persistence;
 using Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure; // Add this using directive for DbContextOptions
 
 namespace Infrastructure.Persistence
 {
-    public sealed class OrderDbContext : DbContext
+    public sealed class OrderDbContext : DbContext,IApplicationDbContext
     {
         public OrderDbContext(DbContextOptions<OrderDbContext> options) : base(options)
         {

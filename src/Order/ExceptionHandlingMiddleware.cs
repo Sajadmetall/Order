@@ -1,56 +1,124 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Application.Common.Exceptions;
+using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Order
+namespace Order.Middleware;
+
+public sealed class ExceptionHandlingMiddleware
 {
-    public sealed class ExceptionHandlingMiddleware : IMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+
+    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
     {
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+        _next = next;
+        _logger = logger;
+    }
 
-        public ExceptionHandlingMiddleware(ILogger<ExceptionHandlingMiddleware> logger)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
         {
-            _logger = logger;
+            await _next(context);
         }
-
-        public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+        catch (Exception ex)
         {
-            try
+            if (context.Response.HasStarted)
             {
-                await next(context);
+                // Can't write ProblemDetails once response has started
+                _logger.LogWarning(ex, "Response has already started; cannot write error response.");
+                throw;
             }
-            catch (ArgumentException ex)
-            {
-                // Input / validation style errors (400)
+
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private async Task HandleExceptionAsync(HttpContext context, Exception ex)
+    {
+        var correlationId = context.Items.TryGetValue(CorrelationIdMiddleware.ItemKey, out var cid)
+            ? cid?.ToString()
+            : null;
+
+        ProblemDetails problem;
+        int statusCode;
+
+        switch (ex)
+        {
+            case ValidationException ve:
+                statusCode = StatusCodes.Status400BadRequest;
+                problem = new ProblemDetails
+                {
+                    Status = statusCode,
+                    Title = "Validation failed",
+                    Detail = "One or more validation errors occurred.",
+                    Instance = context.Request.Path
+                };
+
+                problem.Extensions["errors"] = ve.Errors
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(e => e.ErrorMessage).ToArray()
+                    );
+                _logger.LogWarning(ex, "Validation failed");
+                break;
+
+            case NotFoundException nfe:
+                statusCode = StatusCodes.Status404NotFound;
+                problem = new ProblemDetails
+                {
+                    Status = statusCode,
+                    Title = "Not found",
+                    Detail = nfe.Message,
+                    Instance = context.Request.Path
+                };
+                _logger.LogWarning(ex, "Not found");
+                break;
+
+            case ArgumentException:
+                statusCode = StatusCodes.Status400BadRequest;
+                problem = new ProblemDetails
+                {
+                    Status = statusCode,
+                    Title = ReasonPhrases.GetReasonPhrase(statusCode),
+                    Detail = ex.Message,
+                    Instance = context.Request.Path
+                };
                 _logger.LogWarning(ex, "Bad request");
-                await WriteProblemDetailsAsync(context, StatusCodes.Status400BadRequest, ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Business rule violations: choose 409 (Conflict) or 400 (BadRequest)
+                break;
+
+            case InvalidOperationException:
+                statusCode = StatusCodes.Status409Conflict;
+                problem = new ProblemDetails
+                {
+                    Status = statusCode,
+                    Title = ReasonPhrases.GetReasonPhrase(statusCode),
+                    Detail = ex.Message,
+                    Instance = context.Request.Path
+                };
                 _logger.LogWarning(ex, "Business rule violation");
-                await WriteProblemDetailsAsync(context, StatusCodes.Status409Conflict, ex.Message);
-            }
-            catch (Exception ex)
-            {
+                break;
+
+            default:
+                statusCode = StatusCodes.Status500InternalServerError;
+                problem = new ProblemDetails
+                {
+                    Status = statusCode,
+                    Title = ReasonPhrases.GetReasonPhrase(statusCode),
+                    Detail = "An unexpected error occurred.",
+                    Instance = context.Request.Path
+                };
                 _logger.LogError(ex, "Unhandled exception");
-                await WriteProblemDetailsAsync(context, StatusCodes.Status500InternalServerError, "An unexpected error occurred.");
-            }
+                break;
         }
 
-        private static Task WriteProblemDetailsAsync(HttpContext context, int statusCode, string detail)
-        {
-            context.Response.StatusCode = statusCode;
-            context.Response.ContentType = "application/problem+json";
+        if (!string.IsNullOrWhiteSpace(correlationId))
+            problem.Extensions["correlationId"] = correlationId;
 
-            var problem = new ProblemDetails
-            {
-                Status = statusCode,
-                Title = ReasonPhrases.GetReasonPhrase(statusCode),
-                Detail = detail,
-                Instance = context.Request.Path
-            };
-
-            return context.Response.WriteAsJsonAsync(problem);
-        }
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsJsonAsync(problem);
     }
 }

@@ -1,30 +1,38 @@
-﻿namespace Order
+﻿namespace Order.Middleware;
+
+public sealed class CorrelationIdMiddleware
 {
-    public sealed class CorrelationIdMiddleware : IMiddleware
+    public const string HeaderName = "X-Correlation-Id";
+    public const string ItemKey = "CorrelationId";
+
+    private readonly RequestDelegate _next;
+    private readonly ILogger<CorrelationIdMiddleware> _logger;
+
+    public CorrelationIdMiddleware(RequestDelegate next, ILogger<CorrelationIdMiddleware> logger)
     {
-        private const string HeaderName = "X-Correlation-Id";
-        private readonly ILogger<CorrelationIdMiddleware> _logger;
+        _next = next;
+        _logger = logger;
+    }
 
-        public CorrelationIdMiddleware(ILogger<CorrelationIdMiddleware> logger)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var correlationId = context.Request.Headers.TryGetValue(HeaderName, out var value) &&
+                            !string.IsNullOrWhiteSpace(value.ToString())
+            ? value.ToString()
+            : Guid.NewGuid().ToString("N");
+
+        // Make it accessible to the rest of the pipeline
+        context.Items[ItemKey] = correlationId;
+
+        // Ensure response carries it too
+        context.Response.Headers[HeaderName] = correlationId;
+
+        using (_logger.BeginScope(new Dictionary<string, object>
         {
-            _logger = logger;
-        }
-
-        public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+            ["CorrelationId"] = correlationId
+        }))
         {
-            var correlationId = context.Request.Headers.TryGetValue(HeaderName, out var value)
-                ? value.ToString()
-                : Guid.NewGuid().ToString();
-
-            context.Response.Headers[HeaderName] = correlationId;
-
-            using (_logger.BeginScope(new Dictionary<string, object>
-            {
-                ["CorrelationId"] = correlationId
-            }))
-            {
-                await next(context);
-            }
+            await _next(context);
         }
     }
 }

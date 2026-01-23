@@ -1,13 +1,11 @@
-﻿using Domain.Orders;
+﻿using Application.Abstractions.Persistence;
+using Domain.Orders;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Persistence.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Infrastructure
 {
@@ -17,8 +15,6 @@ namespace Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            
-
             // Configure EF Core DbContext. Update connection string in appsettings.json before using a real database.
             services.AddDbContext<OrderDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost\\SQLEXPRESS;Database=OrderDb;Trusted_Connection=True;TrustServerCertificate=True;"));
@@ -29,6 +25,8 @@ namespace Infrastructure
 
             // Use EF repository
             services.AddScoped<IOrderRepository, EfOrderRepository>();
+            services.AddScoped<IApplicationDbContext>(sp =>
+                      sp.GetRequiredService<OrderDbContext>());
             services.AddScoped<DatabaseSeeder>();
 
             return services;

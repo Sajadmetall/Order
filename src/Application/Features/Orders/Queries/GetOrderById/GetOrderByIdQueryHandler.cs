@@ -1,6 +1,7 @@
 using Application.Abstractions.Persistence;
 using Application.Common.Exceptions;
 using Application.Features.Orders.Dtos;
+using Domain.Orders;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ public sealed class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery
     {
         var orderDto = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.Id.Value == request.OrderId)
+            .Where(o => o.Id == new OrderId(request.OrderId))
             .Select(o => new OrderDto
             {
                 Id = o.Id.Value,
