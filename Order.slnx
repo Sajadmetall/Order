@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path="SolutionItems/copilot-instructions.md" />
+    <File Path="TestPlan.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Application/Application.csproj" Id="ea24baa8-8ce4-46f5-a61e-946ee0bb01b5" />
@@ -9,6 +10,6 @@
     <Project Path="src/Order/Order.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Domain.Tests/Domain.Tests.csproj" Id="aa41b889-d588-41ba-96ca-0b581e383d52" />
+    <Project Path="tests/Order.Domain.Tests/Domain.Tests.csproj" />
   </Folder>
 </Solution>
