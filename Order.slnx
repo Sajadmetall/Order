@@ -1,4 +1,15 @@
 <Solution>
+  <Folder Name="/docs/" />
+  <Folder Name="/docs/decisions/">
+    <File Path="docs/decisions/CAF.md" />
+  </Folder>
+  <Folder Name="/infra/" />
+  <Folder Name="/infra/landing-zone/">
+    <File Path="infra/landing-zone/README.md" />
+  </Folder>
+  <Folder Name="/infra/modules/">
+    <File Path="infra/modules/README.md" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="Readme.md" />
     <File Path="SolutionItems/copilot-instructions.md" />
