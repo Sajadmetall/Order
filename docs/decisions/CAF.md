@@ -3,7 +3,9 @@
 This document captures the initial Cloud Adoption Framework (CAF) decisions for the **Order** project.
 It is intentionally minimal (MVP) and can be refined as the project grows.
 
+
 ------
+
 
 ## 1. Scope & Goals
 - **Project type:** Reference / portfolio project (DDD + Clean Architecture)
