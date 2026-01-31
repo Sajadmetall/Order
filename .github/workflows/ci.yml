@@ -22,13 +22,13 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore Order.sln
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build Order.sln --no-restore -c Release
 
       - name: Test
-        run: dotnet test --no-build -c Release --verbosity normal
+        run: dotnet test Order.sln--no-build -c Release --verbosity normal
 
   bicep-validate:
     runs-on: ubuntu-latest
