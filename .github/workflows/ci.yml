@@ -22,26 +22,35 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore Order.sln
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build Order.sln --no-restore -c Release
 
       - name: Test
-        run: dotnet test --no-build -c Release --verbosity normal
+        run: dotnet test Order.sln --no-build -c Release --verbosity normal
 
   bicep-validate:
-    runs-on: ubuntu-latest
-    # This job runs only if there is at least one .bicep file in the repo
-    if: ${{ hashFiles('**/*.bicep') != '' }}
-    steps:
+     runs-on: ubuntu-latest
+     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check if any Bicep files exist
+        id: bicepcheck
+        run: |
+          if find . -name "*.bicep" | grep -q .; then
+            echo "has_bicep=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_bicep=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Azure CLI
+        if: ${{ steps.bicepcheck.outputs.has_bicep == 'true' }}
         uses: azure/CLI@v2
         with:
           inlineScript: |
             az version
             az bicep version
             find . -name "*.bicep" -print -exec az bicep build --file {} \;
+
