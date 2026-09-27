@@ -3,9 +3,7 @@
   <Folder Name="/docs/decisions/">
     <File Path="docs/decisions/CAF.md" />
   </Folder>
-  <Folder Name="/infra/">
-    <Project Path="infra/Infrastructure/Infrastructure.csproj" Id="1dfe5cdc-e3c1-4a65-beb5-e82d608a1ddf" />
-  </Folder>
+  <Folder Name="/infra/" />
   <Folder Name="/infra/landing-zone/">
     <File Path="infra/landing-zone/README.md" />
     <File Path="main.bicep" />
