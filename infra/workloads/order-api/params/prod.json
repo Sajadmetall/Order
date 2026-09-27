@@ -1,0 +1,83 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "environment": {
+      "value": "prod"
+    },
+    "appName": {
+      "value": "order-api"
+    },
+    "tags": {
+      "value": {
+        "application": "order-api",
+        "environment": "prod",
+        "managedBy": "bicep"
+      }
+    },
+    "resourceGroup": {
+      "value": {
+        "name": "rg-order-api-prod-we-001",
+        "tags": {
+          "costCenter": "engineering-prod"
+        }
+      }
+    },
+    "appServicePlan": {
+      "value": {
+        "name": "asp-order-api-prod-we-001",
+        "skuName": "P1v3",
+        "skuTier": "PremiumV3",
+        "capacity": 1
+      }
+    },
+    "appService": {
+      "value": {
+        "name": "app-order-api-prod-we-001",
+        "runtimeStack": "DOTNETCORE|8.0",
+        "httpsOnly": true,
+        "alwaysOn": true,
+        "appSettings": {
+          "ASPNETCORE_ENVIRONMENT": "Production"
+        }
+      }
+    },
+    "sqlServer": {
+      "value": {
+        "name": "sql-order-api-prod-we-001",
+        "minimumTlsVersion": "1.2",
+        "publicNetworkAccess": "Disabled"
+      }
+    },
+    "sqlDatabase": {
+      "value": {
+        "name": "sqldb-order-api-prod-we-001",
+        "skuName": "S0",
+        "maxSizeBytes": 268435456000,
+        "zoneRedundant": true
+      }
+    },
+    "enableMonitoring": {
+      "value": true
+    },
+    "sqlAdminLogin": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared-prod-we-001/providers/Microsoft.KeyVault/vaults/kv-order-shared-prod-we-001"
+        },
+        "secretName": "sql-admin-login"
+      }
+    },
+    "sqlAdminPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared-prod-we-001/providers/Microsoft.KeyVault/vaults/kv-order-shared-prod-we-001"
+        },
+        "secretName": "sql-admin-password"
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@
   <Folder Name="/infra/" />
   <Folder Name="/infra/landing-zone/">
     <File Path="infra/landing-zone/README.md" />
+    <File Path="main.bicep" />
   </Folder>
   <Folder Name="/infra/modules/">
     <File Path="infra/modules/README.md" />

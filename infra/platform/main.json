@@ -1,0 +1,191 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.41.2.15936",
+      "templateHash": "7192452230020552812"
+    }
+  },
+  "parameters": {
+    "managementGroups": {
+      "type": "array",
+      "metadata": {
+        "description": "Configuration for the management group hierarchy."
+      }
+    },
+    "subscriptionAssignments": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Subscription assignments to management groups."
+      }
+    }
+  },
+  "resources": [
+    {
+      "copy": {
+        "name": "managementGroupModules",
+        "count": "[length(parameters('managementGroups'))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('mg-{0}', uniqueString(parameters('managementGroups')[copyIndex()].name))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "managementGroupName": {
+            "value": "[parameters('managementGroups')[copyIndex()].name]"
+          },
+          "displayName": {
+            "value": "[parameters('managementGroups')[copyIndex()].displayName]"
+          },
+          "parentManagementGroupId": "[if(and(contains(parameters('managementGroups')[copyIndex()], 'parent'), not(empty(string(parameters('managementGroups')[copyIndex()].parent)))), createObject('value', tenantResourceId('Microsoft.Management/managementGroups', string(parameters('managementGroups')[copyIndex()].parent))), createObject('value', ''))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "15430539528752737207"
+            }
+          },
+          "parameters": {
+            "managementGroupName": {
+              "type": "string",
+              "metadata": {
+                "description": "The unique name of the management group."
+              }
+            },
+            "displayName": {
+              "type": "string",
+              "metadata": {
+                "description": "The display name of the management group."
+              }
+            },
+            "parentManagementGroupId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "The resource ID of the parent management group. Leave empty to create under the tenant root group."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Management/managementGroups",
+              "apiVersion": "2023-04-01",
+              "name": "[parameters('managementGroupName')]",
+              "properties": {
+                "displayName": "[parameters('displayName')]",
+                "details": "[if(empty(parameters('parentManagementGroupId')), null(), createObject('parent', createObject('id', parameters('parentManagementGroupId'))))]"
+              }
+            }
+          ],
+          "outputs": {
+            "managementGroupId": {
+              "type": "string",
+              "value": "[tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupName'))]"
+            },
+            "managementGroupName": {
+              "type": "string",
+              "value": "[parameters('managementGroupName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "copy": {
+        "name": "subscriptionAssignmentModules",
+        "count": "[length(parameters('subscriptionAssignments'))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('sub-assignment-{0}', uniqueString(parameters('subscriptionAssignments')[copyIndex()].subscriptionId, parameters('subscriptionAssignments')[copyIndex()].managementGroupName))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "managementGroupName": {
+            "value": "[parameters('subscriptionAssignments')[copyIndex()].managementGroupName]"
+          },
+          "subscriptionId": {
+            "value": "[parameters('subscriptionAssignments')[copyIndex()].subscriptionId]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "2281758431315125457"
+            }
+          },
+          "parameters": {
+            "managementGroupName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the target management group."
+              }
+            },
+            "subscriptionId": {
+              "type": "string",
+              "metadata": {
+                "description": "The subscription ID to associate with the management group."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Management/managementGroups/subscriptions",
+              "apiVersion": "2021-04-01",
+              "name": "[format('{0}/{1}', parameters('managementGroupName'), parameters('subscriptionId'))]"
+            }
+          ],
+          "outputs": {
+            "assignmentId": {
+              "type": "string",
+              "value": "[tenantResourceId('Microsoft.Management/managementGroups/subscriptions', parameters('managementGroupName'), parameters('subscriptionId'))]"
+            },
+            "targetManagementGroupId": {
+              "type": "string",
+              "value": "[tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "managementGroupModules"
+      ]
+    }
+  ],
+  "outputs": {
+    "managementGroupIds": {
+      "type": "array",
+      "copy": {
+        "count": "[length(parameters('managementGroups'))]",
+        "input": "[reference(tenantResourceId('Microsoft.Resources/deployments', format('mg-{0}', uniqueString(parameters('managementGroups')[copyIndex()].name))), '2025-04-01').outputs.managementGroupId.value]"
+      }
+    },
+    "subscriptionAssignmentIds": {
+      "type": "array",
+      "copy": {
+        "count": "[length(parameters('subscriptionAssignments'))]",
+        "input": "[reference(tenantResourceId('Microsoft.Resources/deployments', format('sub-assignment-{0}', uniqueString(parameters('subscriptionAssignments')[copyIndex()].subscriptionId, parameters('subscriptionAssignments')[copyIndex()].managementGroupName))), '2025-04-01').outputs.assignmentId.value]"
+      }
+    }
+  }
+}
