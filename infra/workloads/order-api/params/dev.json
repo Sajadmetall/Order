@@ -1,0 +1,83 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "environment": {
+      "value": "dev"
+    },
+    "appName": {
+      "value": "order-api"
+    },
+    "tags": {
+      "value": {
+        "application": "order-api",
+        "environment": "dev",
+        "managedBy": "bicep"
+      }
+    },
+    "resourceGroup": {
+      "value": {
+        "name": "rg-order-api-dev-we-001",
+        "tags": {
+          "costCenter": "engineering-dev"
+        }
+      }
+    },
+    "appServicePlan": {
+      "value": {
+        "name": "asp-order-api-dev-we-001",
+        "skuName": "B1",
+        "skuTier": "Basic",
+        "capacity": 1
+      }
+    },
+    "appService": {
+      "value": {
+        "name": "app-order-api-dev-we-001",
+        "runtimeStack": "DOTNETCORE|8.0",
+        "httpsOnly": true,
+        "alwaysOn": false,
+        "appSettings": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      }
+    },
+    "sqlServer": {
+      "value": {
+        "name": "sql-order-api-dev-we-001",
+        "minimumTlsVersion": "1.2",
+        "publicNetworkAccess": "Disabled"
+      }
+    },
+    "sqlDatabase": {
+      "value": {
+        "name": "sqldb-order-api-dev-we-001",
+        "skuName": "Basic",
+        "maxSizeBytes": 2147483648,
+        "zoneRedundant": false
+      }
+    },
+    "enableMonitoring": {
+      "value": true
+    },
+    "sqlAdminLogin": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared-dev-we-001/providers/Microsoft.KeyVault/vaults/kv-order-shared-dev-we-001"
+        },
+        "secretName": "sql-admin-login"
+      }
+    },
+    "sqlAdminPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared-dev-we-001/providers/Microsoft.KeyVault/vaults/kv-order-shared-dev-we-001"
+        },
+        "secretName": "sql-admin-password"
+      }
+    }
+  }
+}

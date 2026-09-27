@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "managementGroups": {
+      "value": [
+        {
+          "name": "order-dev-root",
+          "displayName": "Order Dev Root"
+        },
+        {
+          "name": "order-dev-platform",
+          "displayName": "Order Dev Platform",
+          "parent": "order-dev-root"
+        },
+        {
+          "name": "order-dev-workloads",
+          "displayName": "Order Dev Workloads",
+          "parent": "order-dev-root"
+        }
+      ]
+    },
+    "subscriptionAssignments": {
+      "value": [
+        {
+          "managementGroupName": "order-dev-workloads",
+          "subscriptionId": "00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    }
+  }
+}
