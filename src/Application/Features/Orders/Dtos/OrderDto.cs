@@ -1,4 +1,4 @@
-namespace Application.Features.Orders.Dtos;
+namespace Commerce.Application.Features.Orders.Dtos;
 
 public sealed class OrderDto
 {

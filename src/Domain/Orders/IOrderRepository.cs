@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Domain.Orders
+namespace Commerce.Domain.Orders
 {
     public interface IOrderRepository
     {

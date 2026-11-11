@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/docs/" />
+  <Folder Name="/docs/decisions/">
+    <File Path="docs/decisions/CAF.md" />
+  </Folder>
+  <Folder Name="/infra/" />
+  <Folder Name="/Solution Items/">
+    <File Path="Readme.md" />
+    <File Path="SolutionItems/copilot-instructions.md" />
+    <File Path="TestPlan.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Application/Commerce.Application.csproj" Id="ea24baa8-8ce4-46f5-a61e-946ee0bb01b5" />
+    <Project Path="src/Domain/Commerce.Domain.csproj" />
+    <Project Path="src/Infrastructure/Commerce.Infrastructure.csproj" />
+    <Project Path="src/Commerce.Api/Commerce.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Commerce.Domain.Tests/Commerce.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

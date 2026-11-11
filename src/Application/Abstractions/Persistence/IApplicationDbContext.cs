@@ -1,7 +1,7 @@
-using Domain.Orders;
+using Commerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 
-namespace Application.Abstractions.Persistence;
+namespace Commerce.Application.Abstractions.Persistence;
 
 public interface IApplicationDbContext
 {

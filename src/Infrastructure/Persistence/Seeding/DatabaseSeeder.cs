@@ -1,9 +1,10 @@
-using Domain.Orders;
+using Commerce.Domain.Common;
+using Commerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Infrastructure.Persistence.Seeding
+namespace Commerce.Infrastructure.Persistence.Seeding
 {
     public sealed class DatabaseSeeder
     {

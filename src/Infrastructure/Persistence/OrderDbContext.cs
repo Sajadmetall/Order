@@ -1,10 +1,10 @@
 ﻿using System;
-using Application.Abstractions.Persistence;
-using Domain.Orders;
+using Commerce.Application.Abstractions.Persistence;
+using Commerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure; // Add this using directive for DbContextOptions
 
-namespace Infrastructure.Persistence
+namespace Commerce.Infrastructure.Persistence
 {
     public sealed class OrderDbContext : DbContext,IApplicationDbContext
     {

@@ -2,9 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master", "feature/commerce" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
 permissions:
   contents: read
@@ -19,16 +19,16 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore Order.sln
+        run: dotnet restore Commerce.slnx
 
       - name: Build
-        run: dotnet build Order.sln --no-restore -c Release
+        run: dotnet build Commerce.slnx --no-restore -c Release
 
       - name: Test
-        run: dotnet test Order.sln --no-build -c Release --verbosity normal
+        run: dotnet test Commerce.slnx --no-build -c Release --verbosity normal
 
   bicep-validate:
      runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-namespace Application.Abstractions.Messaging;
+namespace Commerce.Application.Abstractions.Messaging;
 
 public interface IEventPublisher
 {

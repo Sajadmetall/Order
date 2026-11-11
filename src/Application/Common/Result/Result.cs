@@ -1,4 +1,4 @@
-namespace Application.Common.Result;
+namespace Commerce.Application.Common.Result;
 
 public class Result
 {

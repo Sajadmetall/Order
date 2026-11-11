@@ -1,8 +1,8 @@
 
-using Domain.Orders;
+using Commerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 
-namespace Infrastructure.Persistence.Repositories
+namespace Commerce.Infrastructure.Persistence.Repositories
 {
     public sealed class EfOrderRepository : IOrderRepository
     {

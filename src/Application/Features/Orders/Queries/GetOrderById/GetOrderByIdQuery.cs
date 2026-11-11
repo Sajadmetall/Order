@@ -1,6 +1,6 @@
-using Application.Features.Orders.Dtos;
+using Commerce.Application.Features.Orders.Dtos;
 using MediatR;
 
-namespace Application.Features.Orders.Queries.GetOrderById;
+namespace Commerce.Application.Features.Orders.Queries.GetOrderById;
 
 public record GetOrderByIdQuery(Guid OrderId) : IRequest<OrderDto>;
