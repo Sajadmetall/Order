@@ -1,105 +1,60 @@
-# Commerce integration tests
+# Commerce Integration Tests
 
-The suite exercises the real ASP.NET Core host, MediatR pipeline, domain model,
-EF Core mappings, migrations, EF Bus Outbox and disposable SQL Server/RabbitMQ instances. Order creation
-and reads use the HTTP API. Payment commands use the application's registered
-MediatR handlers because payment-provider endpoints are still to be designed.
+This xUnit project verifies that the Commerce API, application handlers, domain model, SQL Server persistence, and MassTransit messaging work together. `WebApplicationFactory` hosts the ASP.NET Core pipeline in process. Testcontainers starts disposable SQL Server and RabbitMQ instances.
 
-## Run
+The [Commerce Test Plan](../../TestPlan.md) defines the project-wide testing approach. See [Commerce Domain Unit Tests](../Commerce.Domain.Tests/README.md) for isolated business rules and their boundary cases.
 
-Install .NET 10 and start a Docker-compatible container runtime, then run from the
-repository root.
+## Where each test enters the application
+
+| Boundary | How the suite exercises it |
+|---|---|
+| Order HTTP API | Creates and reads orders through `POST /api/Order` and `GET /api/Order/{id}`. |
+| Payment application workflow | Sends payment commands through the registered MediatR handlers in fresh DI scopes. Settlement receives a synthetic, already verified payment result. |
+| SQL Server and EF Core | Applies the actual migrations and checks committed state, rollback, optimistic concurrency, and preservation of existing order data on upgrade. |
+| MassTransit and RabbitMQ | Checks that settlement saves an outgoing `OrderPaidMessage` with the Order and Payment changes, and that the saved message reaches RabbitMQ after an application restart. |
+
+The HTTP coverage currently concerns Orders. Provider callback verification and Flash Cards entitlement activation are separate integration boundaries and remain future work.
+
+## Project layout
+
+| File | Responsibility |
+|---|---|
+| `Fixtures/CommerceFixture.cs` | Starts and disposes SQL Server and RabbitMQ. The tests in each class share that class's container instances. |
+| `Fixtures/CommerceApiFactory.cs` | Starts the API in the `Testing` environment and supplies the test database and broker settings. |
+| `Fixtures/PurchaseTestBase.cs` | Creates and migrates a unique database for each test, provides HTTP and MediatR helpers, and cleans up the host and database. |
+| `Workflows/PurchaseWorkflowTests.cs` | Covers purchase behavior across Orders and Payments, including failed attempts, retries, repeated results, and rollback on a rejected write. |
+| `Workflows/PersistenceSafetyTests.cs` | Covers stale writes and migration from the initial schema with existing order data. |
+| `Workflows/OutboxDeliveryTests.cs` | Covers message persistence across an application restart, actual delivery to RabbitMQ, and outbox cleanup. |
+
+## How the Outbox tests work
+
+Settlement uses the scoped `IPublishEndpoint` through `IEventPublisher`. MassTransit EF Bus Outbox stores `OrderPaidMessage` in the same SQL transaction as the Order and Payment updates. MassTransit handles delivery after the transaction commits. This branch pins MassTransit to `8.5.12`.
+
+Tests that inspect committed outbox rows pause the delivery service so those rows remain available for assertions. The delivery test starts a subscriber on a unique RabbitMQ queue, restarts the application against the same database with delivery enabled, then verifies the received message and outbox cleanup.
+
+Replaying an accepted settlement and receiving duplicate broker deliveries are distinct cases. The suite checks that replaying settlement does not create another outgoing message. Broker delivery is at least once, so a downstream consumer must handle repeated messages safely.
+
+## Run the tests
+
+Install the .NET 10 SDK and start a Docker-compatible runtime with access to the container images. The fixture supplies connection settings and temporary credentials.
+
+From the repository root:
 
 ```bash
 dotnet test tests/Commerce.Integration.Tests/Commerce.Integration.Tests.csproj -c Release
 ```
 
-The existing solution-wide CI test command also runs this project. Missing Docker
-causes the integration suite to fail during fixture setup so that required
-coverage cannot silently disappear.
+To run only the Outbox delivery test:
 
-## Covered workflow
+```bash
+dotnet test tests/Commerce.Integration.Tests/Commerce.Integration.Tests.csproj -c Release \
+  --filter "FullyQualifiedName~OutboxDeliveryTests"
+```
 
-An order with four items at EUR 2.50 each is created through the API. Preparing
-payment confirms the order and records the expected EUR 10 amount. The first
-attempt fails. A second attempt succeeds, marking the order Paid and recording
-one OrderPaidMessage in the MassTransit EF Bus Outbox in the same SaveChanges
-transaction. A separate recovery test restarts the application, receives the
-persisted event through RabbitMQ and waits for acknowledged outbox cleanup.
+GitHub Actions runs this project as part of the solution-wide test job. An unavailable Docker runtime or image pull failure fails fixture setup. When setup fails, check container startup and readiness first, then migration and host startup logs.
 
-Additional scenarios cover repeated preparation, amount and currency mismatch,
-replayed and conflicting success results, attempts belonging to another payment,
-a second pending attempt, unknown orders, stale writers, transaction rollback and
-upgrading an existing database while preserving the original order and items.
+## Add a test
 
-The settlement command accepts a trusted, already-verified provider outcome. A
-provider adapter must authenticate and verify that outcome before dispatching it.
-MassTransit supplies the outbox dispatcher. Activating an entitlement in Flash
-Cards still requires a product-side consumer. Delivery is at least once, so that
-consumer must deduplicate messages (for example with its own transactional
-consumer outbox/inbox); a single persisted event is not an exactly-once delivery
-guarantee.
+Choose the entry point that matches the behavior you want to verify. Use HTTP for an API contract, MediatR for application workflow behavior, independent database scopes for concurrency, and a RabbitMQ subscriber for delivery.
 
-## Test conventions
-
-- Use SQL Server and RabbitMQ, matching the production database provider and transport. The container
-  image and NuGet versions are pinned.
-- Share the expensive containers through an xUnit class fixture. Give
-  every test a unique database and dispose of its host, clients and database.
-- Apply actual migrations before hosted delivery services start. Include an upgrade test from the
-  initial schema to protect existing data.
-- Use synthetic data and container-generated credentials. Connection settings
-  always point to the disposable container.
-- Resolve production handlers from the real host. Use a fresh DI scope for each
-  command and verify persisted state through another scope or an HTTP read.
-- Assert observable outcomes and database consistency. Unit tests cover the
-  detailed domain-rule permutations.
-- Exercise duplicate delivery, failed writes and stale writers explicitly.
-  Database uniqueness and optimistic concurrency prevent duplicate outcomes.
-- Pause the real delivery service only while inspecting committed outbox rows;
-  enable it for the broker delivery/restart test. Bind the test subscriber before
-  publishing, use a unique queue, and bound asynchronous waits with cancellation.
-- Allow tests to run without depending on their order. Await operations and use
-  the container's readiness checks instead of fixed sleeps.
-
-A concurrency or uniqueness exception aborts that unit of work. A retry must use
-an independent scope and reload persisted state. Repeating a committed success
-with the same attempt and provider reference returns successfully without another
-outbox entry.
-
-## References
-
-- [ASP.NET Core integration tests](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0)
-- [EF Core testing strategy](https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy)
-- [Testcontainers SQL Server module](https://dotnet.testcontainers.org/modules/mssql/)
-
-## MassTransit version and runtime configuration
-
-MassTransit.EntityFrameworkCore and MassTransit.RabbitMQ are pinned to **8.5.12**,
-the latest stable 8.x release checked on 2026-11-23. This version is Apache-2.0;
-MassTransit 9 introduces a commercial license and is deliberately not selected.
-
-The scoped IEventPublisher adapter uses IPublishEndpoint. The EF Bus Outbox stores
-the message in the same OrderDbContext as the order/payment updates. Do not replace
-it with IBus in application handlers because that bypasses the scoped bus outbox.
-MassTransit owns OutboxMessage, OutboxState and InboxState; there is no custom
-outbox table or delivery loop in the application.
-
-For local development, provide SQL Server and RabbitMQ and override configuration:
-
-- `RabbitMq__Host`, `RabbitMq__Port` and `RabbitMq__VirtualHost` identify the broker.
-- `RabbitMq__Username` and `RabbitMq__Password` should come from user secrets or the
-  environment. Local defaults are RabbitMQ's guest account on localhost.
-- Keep `ConnectionStrings__DefaultConnection` in user secrets or the environment.
-
-Production must provision its broker, durable subscriber queue and credentials
-before relying on events. This PR changes no Azure deployment workflow.
-The unmerged PR's AddPaymentWorkflow migration was regenerated to create the
-MassTransit tables directly. The original InitialCreate migration is unchanged;
-the upgrade test verifies existing orders survive. A disposable development
-database already using the PR's previous migration should be recreated before
-applying this revised migration set.
-
-- [MassTransit 8.5.12 package and license](https://www.nuget.org/packages/MassTransit/8.5.12)
-- [MassTransit EF transactional outbox](https://masstransit.io/documentation/configuration/middleware/outbox)
-- [Testcontainers RabbitMQ module](https://dotnet.testcontainers.org/modules/rabbitmq/)
+Use synthetic data and verify committed results through a fresh scope or an HTTP read. For a rollback test, check the stored business state and any outgoing message affected by the failed operation. For asynchronous delivery, wait for an observable condition with a timeout. Keep each test independent of execution order and keep migration experiments inside the test's disposable database.
