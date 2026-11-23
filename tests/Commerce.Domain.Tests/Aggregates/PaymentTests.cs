@@ -3,7 +3,7 @@ using Commerce.Domain.Orders;
 using Commerce.Domain.Payments;
 using Xunit;
 
-namespace Commerce.Domain.Tests.Payments;
+namespace Commerce.Domain.Tests.Aggregates;
 
 public sealed class PaymentTests
 {
