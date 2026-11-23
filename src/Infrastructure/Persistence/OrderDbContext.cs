@@ -2,7 +2,7 @@ using System;
 using Commerce.Application.Abstractions.Persistence;
 using Commerce.Domain.Orders;
 using Commerce.Domain.Payments;
-using Commerce.Application.Features.Payments;
+using MassTransit;
 using Commerce.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure; // Add this using directive for DbContextOptions
@@ -17,13 +17,12 @@ namespace Commerce.Infrastructure.Persistence
 
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<Payment> Payments => Set<Payment>();
-        public DbSet<OrderPaidMessage> OrderPaidMessages => Set<OrderPaidMessage>();
         //public DbSet<OrderItem> OrderItems { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfiguration(new PaymentConfiguration());
-            modelBuilder.ApplyConfiguration(new OrderPaidMessageConfiguration());
+            modelBuilder.AddTransactionalOutboxEntities();
             modelBuilder.Entity<Order>(order =>
             {
                 order.HasKey(o => o.Id);

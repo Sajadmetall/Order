@@ -12,8 +12,8 @@ using Xunit;
 namespace Commerce.Integration.Tests.Workflows;
 
 [Trait("Category", "Integration")]
-public sealed class PersistenceSafetyTests(SqlServerFixture sqlServer)
-    : PurchaseTestBase(sqlServer), IClassFixture<SqlServerFixture>
+public sealed class PersistenceSafetyTests(CommerceFixture infrastructure)
+    : PurchaseTestBase(infrastructure), IClassFixture<CommerceFixture>
 {
     [Fact]
     public async Task A_stale_writer_cannot_create_a_second_pending_attempt()

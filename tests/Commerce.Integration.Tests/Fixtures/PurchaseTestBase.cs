@@ -12,29 +12,45 @@ using Xunit;
 
 namespace Commerce.Integration.Tests.Fixtures;
 
-public abstract class PurchaseTestBase(SqlServerFixture sqlServer) : IAsyncLifetime
+public abstract class PurchaseTestBase(CommerceFixture infrastructure) : IAsyncLifetime
 {
     private string _connectionString = string.Empty;
     protected CommerceApiFactory Factory { get; private set; } = null!;
     protected HttpClient Client { get; private set; } = null!;
+    protected string RabbitMqConnectionString => infrastructure.RabbitMqConnectionString;
 
     public async Task InitializeAsync()
     {
-        var connection = new SqlConnectionStringBuilder(sqlServer.ConnectionString)
+        var connection = new SqlConnectionStringBuilder(infrastructure.ConnectionString)
         {
             InitialCatalog = "CommerceIntegration_" + Guid.NewGuid().ToString("N")
         };
         _connectionString = connection.ConnectionString;
-        Factory = new CommerceApiFactory(_connectionString);
+        // Migrate before hosted services start querying the outbox.
+        var options = new DbContextOptionsBuilder<OrderDbContext>()
+            .UseSqlServer(_connectionString).Options;
+        await using (var context = new OrderDbContext(options))
+            await context.Database.MigrateAsync();
+
+        StartHost(deliverOutbox: false);
+    }
+
+    protected async Task RestartHostWithDeliveryAsync()
+    {
+        Client.Dispose();
+        await Factory.DisposeAsync();
+        StartHost(deliverOutbox: true);
+    }
+
+    private void StartHost(bool deliverOutbox)
+    {
+        Factory = new CommerceApiFactory(
+            _connectionString, infrastructure.RabbitMqConnectionString, deliverOutbox);
         Client = Factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"),
             AllowAutoRedirect = false
         });
-
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
-        await context.Database.MigrateAsync();
     }
 
     public async Task DisposeAsync()

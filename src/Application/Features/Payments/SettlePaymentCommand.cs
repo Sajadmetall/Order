@@ -1,3 +1,4 @@
+using Commerce.Application.Abstractions.Messaging;
 using Commerce.Application.Abstractions.Persistence;
 using Commerce.Application.Common.Exceptions;
 using Commerce.Domain.Common;
@@ -29,7 +30,8 @@ public sealed class SettlePaymentCommandValidator : AbstractValidator<SettlePaym
     }
 }
 
-public sealed class SettlePaymentCommandHandler(IApplicationDbContext context, TimeProvider timeProvider)
+public sealed class SettlePaymentCommandHandler(
+    IApplicationDbContext context, IEventPublisher publisher, TimeProvider timeProvider)
     : IRequestHandler<SettlePaymentCommand>
 {
     public async Task Handle(SettlePaymentCommand request, CancellationToken cancellationToken)
@@ -48,14 +50,14 @@ public sealed class SettlePaymentCommandHandler(IApplicationDbContext context, T
 
         if (!alreadyPaid)
         {
-            context.OrderPaidMessages.Add(new OrderPaidMessage
+            await publisher.PublishAsync(new OrderPaidMessage
             {
                 OrderId = order.Id.Value,
                 PaymentId = payment.Id.Value,
                 Amount = verifiedAmount.Amount,
                 Currency = verifiedAmount.Currency,
                 OccurredAtUtc = timeProvider.GetUtcNow()
-            });
+            }, cancellationToken);
         }
 
         // One relational SaveChanges transaction commits payment, order and outbox.

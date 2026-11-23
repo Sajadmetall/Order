@@ -1,7 +1,7 @@
 # Commerce integration tests
 
 The suite exercises the real ASP.NET Core host, MediatR pipeline, domain model,
-EF Core mappings, migrations and a disposable SQL Server instance. Order creation
+EF Core mappings, migrations, EF Bus Outbox and disposable SQL Server/RabbitMQ instances. Order creation
 and reads use the HTTP API. Payment commands use the application's registered
 MediatR handlers because payment-provider endpoints are still to be designed.
 
@@ -23,7 +23,9 @@ coverage cannot silently disappear.
 An order with four items at EUR 2.50 each is created through the API. Preparing
 payment confirms the order and records the expected EUR 10 amount. The first
 attempt fails. A second attempt succeeds, marking the order Paid and recording
-one OrderPaidMessage in OrderPaidOutbox in the same SaveChanges transaction.
+one OrderPaidMessage in the MassTransit EF Bus Outbox in the same SaveChanges
+transaction. A separate recovery test restarts the application, receives the
+persisted event through RabbitMQ and waits for acknowledged outbox cleanup.
 
 Additional scenarios cover repeated preparation, amount and currency mismatch,
 replayed and conflicting success results, attempts belonging to another payment,
@@ -32,17 +34,19 @@ upgrading an existing database while preserving the original order and items.
 
 The settlement command accepts a trusted, already-verified provider outcome. A
 provider adapter must authenticate and verify that outcome before dispatching it.
-The suite proves persistence of the outgoing purchase outcome. Sending it to
-Flash Cards and activating an entitlement require an outbox dispatcher and a
-product-side consumer.
+MassTransit supplies the outbox dispatcher. Activating an entitlement in Flash
+Cards still requires a product-side consumer. Delivery is at least once, so that
+consumer must deduplicate messages (for example with its own transactional
+consumer outbox/inbox); a single persisted event is not an exactly-once delivery
+guarantee.
 
 ## Test conventions
 
-- Use SQL Server, matching the application's database provider. The container
+- Use SQL Server and RabbitMQ, matching the production database provider and transport. The container
   image and NuGet versions are pinned.
-- Share the expensive SQL Server container through an xUnit class fixture. Give
+- Share the expensive containers through an xUnit class fixture. Give
   every test a unique database and dispose of its host, clients and database.
-- Apply actual migrations with MigrateAsync. Include an upgrade test from the
+- Apply actual migrations before hosted delivery services start. Include an upgrade test from the
   initial schema to protect existing data.
 - Use synthetic data and container-generated credentials. Connection settings
   always point to the disposable container.
@@ -52,6 +56,9 @@ product-side consumer.
   detailed domain-rule permutations.
 - Exercise duplicate delivery, failed writes and stale writers explicitly.
   Database uniqueness and optimistic concurrency prevent duplicate outcomes.
+- Pause the real delivery service only while inspecting committed outbox rows;
+  enable it for the broker delivery/restart test. Bind the test subscriber before
+  publishing, use a unique queue, and bound asynchronous waits with cancellation.
 - Allow tests to run without depending on their order. Await operations and use
   the container's readiness checks instead of fixed sleeps.
 
@@ -65,3 +72,34 @@ outbox entry.
 - [ASP.NET Core integration tests](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0)
 - [EF Core testing strategy](https://learn.microsoft.com/en-us/ef/core/testing/choosing-a-testing-strategy)
 - [Testcontainers SQL Server module](https://dotnet.testcontainers.org/modules/mssql/)
+
+## MassTransit version and runtime configuration
+
+MassTransit.EntityFrameworkCore and MassTransit.RabbitMQ are pinned to **8.5.12**,
+the latest stable 8.x release checked on 2026-11-23. This version is Apache-2.0;
+MassTransit 9 introduces a commercial license and is deliberately not selected.
+
+The scoped IEventPublisher adapter uses IPublishEndpoint. The EF Bus Outbox stores
+the message in the same OrderDbContext as the order/payment updates. Do not replace
+it with IBus in application handlers because that bypasses the scoped bus outbox.
+MassTransit owns OutboxMessage, OutboxState and InboxState; there is no custom
+outbox table or delivery loop in the application.
+
+For local development, provide SQL Server and RabbitMQ and override configuration:
+
+- `RabbitMq__Host`, `RabbitMq__Port` and `RabbitMq__VirtualHost` identify the broker.
+- `RabbitMq__Username` and `RabbitMq__Password` should come from user secrets or the
+  environment. Local defaults are RabbitMQ's guest account on localhost.
+- Keep `ConnectionStrings__DefaultConnection` in user secrets or the environment.
+
+Production must provision its broker, durable subscriber queue and credentials
+before relying on events. This PR changes no Azure deployment workflow.
+The unmerged PR's AddPaymentWorkflow migration was regenerated to create the
+MassTransit tables directly. The original InitialCreate migration is unchanged;
+the upgrade test verifies existing orders survive. A disposable development
+database already using the PR's previous migration should be recreated before
+applying this revised migration set.
+
+- [MassTransit 8.5.12 package and license](https://www.nuget.org/packages/MassTransit/8.5.12)
+- [MassTransit EF transactional outbox](https://masstransit.io/documentation/configuration/middleware/outbox)
+- [Testcontainers RabbitMQ module](https://dotnet.testcontainers.org/modules/rabbitmq/)

@@ -1,4 +1,6 @@
 using Commerce.Application.Common.Exceptions;
+using MassTransit.EntityFrameworkCoreIntegration;
+using System.Text.Json;
 using Commerce.Application.Features.Payments;
 using Commerce.Domain.Payments;
 using Commerce.Infrastructure.Persistence;
@@ -10,8 +12,8 @@ using Xunit;
 namespace Commerce.Integration.Tests.Workflows;
 
 [Trait("Category", "Integration")]
-public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
-    : PurchaseTestBase(sqlServer), IClassFixture<SqlServerFixture>
+public sealed class PurchaseWorkflowTests(CommerceFixture infrastructure)
+    : PurchaseTestBase(infrastructure), IClassFixture<CommerceFixture>
 {
     [Fact]
     public async Task Failed_attempt_then_retry_settles_the_order_and_records_one_purchase_outcome()
@@ -25,7 +27,7 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
         await using (var failedScope = Factory.Services.CreateAsyncScope())
         {
             var context = failedScope.ServiceProvider.GetRequiredService<OrderDbContext>();
-            Assert.Empty(await context.OrderPaidMessages.ToListAsync());
+            Assert.Empty(await context.Set<OutboxMessage>().ToListAsync());
         }
 
         var secondAttempt = await SendAsync(new StartPaymentAttemptCommand(paymentId));
@@ -46,7 +48,7 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
         Assert.Equal(2, payment.Attempts.Count);
         Assert.Equal(PaymentAttemptStatus.Failed, payment.Attempts.Single(attempt => attempt.Id == firstAttempt).Status);
         Assert.Equal(PaymentAttemptStatus.Succeeded, payment.Attempts.Single(attempt => attempt.Id == secondAttempt).Status);
-        var outcome = await saved.OrderPaidMessages.SingleAsync();
+        var outcome = DeserializeOutcome(await saved.Set<OutboxMessage>().SingleAsync());
         Assert.Equal(orderId, outcome.OrderId);
         Assert.Equal(paymentId, outcome.PaymentId);
         Assert.Equal(10m, outcome.Amount);
@@ -95,7 +97,7 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
 
         await using var scope = Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
-        Assert.Equal(1, await context.OrderPaidMessages.CountAsync());
+        Assert.Equal(1, await context.Set<OutboxMessage>().CountAsync());
         Assert.Single((await context.Payments.Include(payment => payment.Attempts).SingleAsync()).Attempts);
         Assert.Equal("Paid", (await ReadOrderAsync(orderId)).Status);
     }
@@ -115,7 +117,7 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
         var context = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
         var payment = await context.Payments.Include(payment => payment.Attempts).SingleAsync();
         Assert.Equal("original-result", Assert.Single(payment.Attempts).ProviderTransactionReference);
-        Assert.Equal(1, await context.OrderPaidMessages.CountAsync());
+        Assert.Equal(1, await context.Set<OutboxMessage>().CountAsync());
     }
 
     [Fact]
@@ -137,7 +139,7 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
         await AssertPendingPaymentAsync(secondPayment);
         await using var scope = Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
-        Assert.Equal(firstOrder, (await context.OrderPaidMessages.SingleAsync()).OrderId);
+        Assert.Equal(firstOrder, DeserializeOutcome(await context.Set<OutboxMessage>().SingleAsync()).OrderId);
     }
 
     [Fact]
@@ -181,6 +183,13 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
         Assert.Empty(await context.Payments.ToListAsync());
     }
 
+    private static OrderPaidMessage DeserializeOutcome(OutboxMessage row)
+    {
+        using var envelope = JsonDocument.Parse(row.Body);
+        return envelope.RootElement.GetProperty("message").Deserialize<OrderPaidMessage>(
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
     private async Task AssertPendingPaymentAsync(Guid paymentId)
     {
         await using var scope = Factory.Services.CreateAsyncScope();
@@ -190,6 +199,7 @@ public sealed class PurchaseWorkflowTests(SqlServerFixture sqlServer)
             .SingleAsync(payment => payment.Id == id);
         Assert.False(payment.IsPaid);
         Assert.Equal(PaymentAttemptStatus.Pending, Assert.Single(payment.Attempts).Status);
-        Assert.False(await context.OrderPaidMessages.AnyAsync(message => message.PaymentId == paymentId));
+        var outcomes = await context.Set<OutboxMessage>().ToListAsync();
+        Assert.DoesNotContain(outcomes, message => DeserializeOutcome(message).PaymentId == paymentId);
     }
 }
