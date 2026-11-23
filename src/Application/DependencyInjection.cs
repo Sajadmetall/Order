@@ -11,6 +11,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         var assembly = Assembly.GetExecutingAssembly();
+        services.AddSingleton(TimeProvider.System);
 
         // Register MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
