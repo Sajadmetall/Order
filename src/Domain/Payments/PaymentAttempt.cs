@@ -2,7 +2,7 @@ namespace Commerce.Domain.Payments;
 
 public sealed class PaymentAttempt
 {
-    public Guid Id { get; } = Guid.NewGuid();
+    public Guid Id { get; private set; } = Guid.NewGuid();
     public PaymentAttemptStatus Status { get; private set; } = PaymentAttemptStatus.Pending;
     public string? ProviderTransactionReference { get; private set; }
 

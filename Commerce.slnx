@@ -56,5 +56,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Commerce.Domain.Tests/Commerce.Domain.Tests.csproj" />
+    <Project Path="tests/Commerce.Integration.Tests/Commerce.Integration.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,4 +1,4 @@
-﻿using Commerce.Application;
+using Commerce.Application;
 using Commerce.Infrastructure;
 using Commerce.Infrastructure.Persistence;
 using Commerce.Infrastructure.Persistence.Seeding;
@@ -8,6 +8,8 @@ using Commerce.Api.Middleware;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -47,3 +49,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

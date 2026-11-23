@@ -34,6 +34,9 @@ public sealed class Order
     {
         EnsureIsCreated();
 
+        if (_items.Count > 0 && _items[0].UnitPrice.Currency != unitPrice.Currency)
+            throw new InvalidOperationException("All order items must use the same currency.");
+
         // Order (root) creates internal entity
         _items.Add(new OrderItem(productName, quantity, unitPrice));
     }
@@ -44,6 +47,26 @@ public sealed class Order
         if (_items.Count == 0)
             throw new InvalidOperationException("Order must have at least one item.");
         Status = OrderStatus.Confirmed;
+    }
+
+    public Money GetTotal()
+    {
+        if (_items.Count == 0)
+            throw new InvalidOperationException("An empty order has no payable total.");
+
+        return _items.Select(item => item.TotalPrice).Aggregate((total, amount) => total.Add(amount));
+    }
+
+    public void MarkPaid(Money verifiedAmount)
+    {
+        if (verifiedAmount != GetTotal())
+            throw new ArgumentException("Payment must match the order total and currency.", nameof(verifiedAmount));
+        if (Status == OrderStatus.Paid)
+            return;
+        if (Status != OrderStatus.Confirmed)
+            throw new InvalidOperationException("Only a confirmed order can be paid.");
+
+        Status = OrderStatus.Paid;
     }
 
     public void Ship()

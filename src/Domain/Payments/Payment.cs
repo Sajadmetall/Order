@@ -7,11 +7,14 @@ public sealed class Payment
 {
     private readonly List<PaymentAttempt> _attempts = [];
 
-    public PaymentId Id { get; }
-    public OrderId OrderId { get; }
-    public Money Amount { get; }
+    public PaymentId Id { get; private set; }
+    public OrderId OrderId { get; private set; } = default!;
+    public Money Amount { get; private set; } = default!;
+    public int Revision { get; private set; }
     public IReadOnlyList<PaymentAttempt> Attempts => _attempts.AsReadOnly();
     public bool IsPaid => _attempts.Any(attempt => attempt.Status == PaymentAttemptStatus.Succeeded);
+
+    private Payment() { } // EF Core materialization
 
     private Payment(OrderId orderId, Money amount)
     {
@@ -41,10 +44,18 @@ public sealed class Payment
 
         var attempt = new PaymentAttempt();
         _attempts.Add(attempt);
+        Revision++;
         return attempt.Id;
     }
 
-    public void RecordFailure(Guid attemptId) => FindAttempt(attemptId).Fail();
+    public void RecordFailure(Guid attemptId)
+    {
+        var attempt = FindAttempt(attemptId);
+        var previousStatus = attempt.Status;
+        attempt.Fail();
+        if (previousStatus != attempt.Status)
+            Revision++;
+    }
 
     public void RecordSuccess(Guid attemptId, Money verifiedAmount, string providerTransactionReference)
     {
@@ -52,7 +63,11 @@ public sealed class Payment
         if (verifiedAmount != Amount)
             throw new ArgumentException("Verified payment must match the expected amount and currency.", nameof(verifiedAmount));
 
-        FindAttempt(attemptId).Succeed(providerTransactionReference);
+        var attempt = FindAttempt(attemptId);
+        var previousStatus = attempt.Status;
+        attempt.Succeed(providerTransactionReference);
+        if (previousStatus != attempt.Status)
+            Revision++;
     }
 
     private PaymentAttempt FindAttempt(Guid attemptId) =>
