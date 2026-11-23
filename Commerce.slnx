@@ -5,11 +5,11 @@
   </Folder>
   <Folder Name="/infra/" />
   <Folder Name="/infra/landing-zone/">
-    <File Path="infra/landing-zone/README.md" />
-    <File Path="main.bicep" />
+    <File Path="infra/platform/README.md" />
+    <File Path="infra/platform/main.bicep" />
   </Folder>
   <Folder Name="/infra/modules/">
-    <File Path="infra/modules/README.md" />
+    <File Path="infra/platform/modules/README.md" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="Readme.md" />
