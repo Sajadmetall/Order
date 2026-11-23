@@ -1,11 +1,11 @@
-using Application.Abstractions.Persistence;
-using Application.Common.Exceptions;
-using Application.Features.Orders.Dtos;
-using Domain.Orders;
+using Commerce.Application.Abstractions.Persistence;
+using Commerce.Application.Common.Exceptions;
+using Commerce.Application.Features.Orders.Dtos;
+using Commerce.Domain.Orders;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Application.Features.Orders.Queries.GetOrderById;
+namespace Commerce.Application.Features.Orders.Queries.GetOrderById;
 
 public sealed class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderDto>
 {

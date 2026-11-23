@@ -1,4 +1,4 @@
-namespace Domain.Orders;
+namespace Commerce.Domain.Orders;
 
 public sealed record OrderId(Guid Value)
 {

@@ -1,4 +1,4 @@
-namespace Application.Abstractions.Identity;
+namespace Commerce.Application.Abstractions.Identity;
 
 public interface ICurrentUser
 {

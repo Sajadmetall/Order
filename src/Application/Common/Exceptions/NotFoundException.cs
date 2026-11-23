@@ -1,4 +1,4 @@
-namespace Application.Common.Exceptions;
+namespace Commerce.Application.Common.Exceptions;
 
 public class NotFoundException : Exception
 {

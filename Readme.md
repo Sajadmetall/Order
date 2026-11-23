@@ -1,4 +1,4 @@
-# Order Service – DDD & CQRS Sample
+# Commerce — DDD & CQRS Reference Project
 
 This repository contains a **production-oriented Order Service** built as a learning and portfolio project, with a strong focus on **clean architecture, Domain-Driven Design (DDD), and CQRS**.
 
@@ -52,6 +52,15 @@ The solution follows a layered architecture inspired by **DDD + Clean Architectu
 
 ---
 
+## Commerce domain
+
+Commerce is one bounded context. The Domain project organizes its model into
+`Commerce.Domain.Orders` and `Commerce.Domain.Payments`, with `Money` shared
+inside that context. Orders owns the existing `Order` aggregate and its items.
+The separate `Payment` aggregate references an order by `OrderId` and models
+failed and successful attempts. The payment module currently runs as a domain
+model suitable for simulated scenarios.
+
 ## 🧠 Domain Model Highlights
 
 - `Order` as an **Aggregate Root**
@@ -102,6 +111,7 @@ The intention is:
 4. Run the API project
 
 ```bash
-dotnet restore
-dotnet ef database update
-dotnet run
+dotnet restore Commerce.slnx
+dotnet build Commerce.slnx --no-restore
+dotnet test Commerce.slnx --no-build
+dotnet run --project src/Commerce.Api/Commerce.Api.csproj

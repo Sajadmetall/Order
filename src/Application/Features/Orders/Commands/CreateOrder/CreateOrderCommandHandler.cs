@@ -1,8 +1,9 @@
-using Application.Abstractions.Persistence;
-using Domain.Orders;
+using Commerce.Domain.Common;
+using Commerce.Application.Abstractions.Persistence;
+using Commerce.Domain.Orders;
 using MediatR;
 
-namespace Application.Features.Orders.Commands.CreateOrder;
+namespace Commerce.Application.Features.Orders.Commands.CreateOrder;
 
 public sealed class CreateOrderCommandHandler
     : IRequestHandler<CreateOrderCommand, Guid>

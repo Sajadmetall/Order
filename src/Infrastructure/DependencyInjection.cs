@@ -1,13 +1,13 @@
-﻿using Application.Abstractions.Persistence;
-using Domain.Orders;
-using Infrastructure.Persistence;
-using Infrastructure.Persistence.Repositories;
-using Infrastructure.Persistence.Seeding;
+﻿using Commerce.Application.Abstractions.Persistence;
+using Commerce.Domain.Orders;
+using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Persistence.Repositories;
+using Commerce.Infrastructure.Persistence.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Infrastructure
+namespace Commerce.Infrastructure
 {
     public static class DependencyInjection
     {

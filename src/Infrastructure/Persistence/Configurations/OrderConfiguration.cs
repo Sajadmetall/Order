@@ -1,8 +1,8 @@
-﻿using Domain.Orders;
+﻿using Commerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Infrastructure.Persistence.Configurations
+namespace Commerce.Infrastructure.Persistence.Configurations
 {
     public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
     {

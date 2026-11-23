@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace Application.Features.Orders.Commands.CreateOrder;
+namespace Commerce.Application.Features.Orders.Commands.CreateOrder;
 
 public sealed record CreateOrderCommand(
     string CustomerName,

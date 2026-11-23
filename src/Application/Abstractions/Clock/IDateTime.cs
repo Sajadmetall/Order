@@ -1,4 +1,4 @@
-namespace Application.Abstractions.Clock;
+namespace Commerce.Application.Abstractions.Clock;
 
 public interface IDateTime
 {
