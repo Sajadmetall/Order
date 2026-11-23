@@ -4,44 +4,12 @@
     <File Path="docs/decisions/CAF.md" />
   </Folder>
   <Folder Name="/infra/" />
-  <Folder Name="/infra/bootstrap/">
-    <File Path="infra/bootstrap/README.md" />
-    <File Path="infra/bootstrap/bootstrap-and-deploy.ps1" />
-    <File Path="infra/bootstrap/bootstrap.ps1" />
+  <Folder Name="/infra/landing-zone/">
+    <File Path="infra/landing-zone/README.md" />
+    <File Path="main.bicep" />
   </Folder>
-  <Folder Name="/infra/platform/">
-    <File Path="infra/platform/README.md" />
-    <File Path="infra/platform/main.bicep" />
-    <File Path="infra/platform/main.json" />
-  </Folder>
-  <Folder Name="/infra/platform/modules/">
-    <File Path="infra/platform/modules/README.md" />
-    <File Path="infra/platform/modules/management-group-subscription-assignment.bicep" />
-    <File Path="infra/platform/modules/management-group.bicep" />
-  </Folder>
-  <Folder Name="/infra/platform/params/">
-    <File Path="infra/platform/params/dev.json" />
-    <File Path="infra/platform/params/prod.json" />
-  </Folder>
-  <Folder Name="/infra/workloads/" />
-  <Folder Name="/infra/workloads/order-api/">
-    <File Path="infra/workloads/order-api/README.md" />
-    <File Path="infra/workloads/order-api/main.bicep" />
-    <File Path="infra/workloads/order-api/main.json" />
-  </Folder>
-  <Folder Name="/infra/workloads/order-api/modules/">
-    <File Path="infra/workloads/order-api/modules/README.md" />
-    <File Path="infra/workloads/order-api/modules/app-insights.bicep" />
-    <File Path="infra/workloads/order-api/modules/app-service-plan.bicep" />
-    <File Path="infra/workloads/order-api/modules/app-service.bicep" />
-    <File Path="infra/workloads/order-api/modules/log-analytics.bicep" />
-    <File Path="infra/workloads/order-api/modules/rg.bicep" />
-    <File Path="infra/workloads/order-api/modules/sql-database.bicep" />
-    <File Path="infra/workloads/order-api/modules/sql-server.bicep" />
-  </Folder>
-  <Folder Name="/infra/workloads/order-api/params/">
-    <File Path="infra/workloads/order-api/params/dev.json" />
-    <File Path="infra/workloads/order-api/params/prod.json" />
+  <Folder Name="/infra/modules/">
+    <File Path="infra/modules/README.md" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="Readme.md" />
