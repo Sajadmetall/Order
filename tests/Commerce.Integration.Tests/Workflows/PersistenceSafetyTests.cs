@@ -2,7 +2,9 @@ using Commerce.Application.Features.Payments;
 using Commerce.Domain.Orders;
 using Commerce.Domain.Payments;
 using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Persistence.Seeding;
 using Commerce.Integration.Tests.Fixtures;
+using MassTransit.EntityFrameworkCoreIntegration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -15,6 +17,52 @@ namespace Commerce.Integration.Tests.Workflows;
 public sealed class PersistenceSafetyTests(CommerceFixture infrastructure)
     : PurchaseTestBase(infrastructure), IClassFixture<CommerceFixture>
 {
+    [Fact]
+    public async Task Development_seed_adds_purchase_examples_to_a_nonempty_database_without_duplicates()
+    {
+        var existingOrderId = await CreateOrderAsync();
+        for (var run = 0; run < 2; run++)
+        {
+            await using var seedScope = Factory.Services.CreateAsyncScope();
+            await seedScope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync();
+        }
+
+        await using var verificationScope = Factory.Services.CreateAsyncScope();
+        var context = verificationScope.ServiceProvider.GetRequiredService<OrderDbContext>();
+        var orders = await context.Orders.AsNoTracking().ToListAsync();
+        var payments = await context.Payments.AsNoTracking().Include(payment => payment.Attempts).ToListAsync();
+        var existing = Assert.Single(orders, order => order.Id.Value == existingOrderId);
+        Assert.Equal(OrderStatus.Created, existing.Status);
+        Assert.Equal(10m, existing.GetTotal().Amount);
+
+        var examples = orders.Where(order => order.Id.Value != existingOrderId).ToList();
+        Assert.Equal(5, examples.Count);
+        Assert.Equal(4, payments.Count);
+        Assert.DoesNotContain(payments, payment => payment.OrderId == existing.Id);
+
+        var draft = Assert.Single(examples, order => order.Status == OrderStatus.Created);
+        Assert.DoesNotContain(payments, payment => payment.OrderId == draft.Id);
+
+        foreach (var payment in payments)
+        {
+            var order = Assert.Single(examples, order => order.Id == payment.OrderId);
+            Assert.Equal(order.GetTotal(), payment.Amount);
+            Assert.Equal(payment.IsPaid ? OrderStatus.Paid : OrderStatus.Confirmed, order.Status);
+        }
+
+        Assert.Single(payments, payment => payment.Attempts.Count == 0);
+        Assert.Single(payments, payment => payment.Attempts.Count == 1 &&
+            payment.Attempts.Single().Status == PaymentAttemptStatus.Pending);
+        Assert.Single(payments, payment => payment.Attempts.Count == 1 &&
+            payment.Attempts.Single().Status == PaymentAttemptStatus.Failed);
+        var paid = Assert.Single(payments, payment => payment.IsPaid);
+        Assert.Equal(2, paid.Attempts.Count);
+        Assert.Single(paid.Attempts, attempt => attempt.Status == PaymentAttemptStatus.Failed);
+        var success = Assert.Single(paid.Attempts, attempt => attempt.Status == PaymentAttemptStatus.Succeeded);
+        Assert.StartsWith("seed-", success.ProviderTransactionReference);
+        Assert.False(await context.Set<OutboxMessage>().AnyAsync());
+    }
+
     [Fact]
     public async Task A_stale_writer_cannot_create_a_second_pending_attempt()
     {
