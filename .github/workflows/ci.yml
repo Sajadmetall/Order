@@ -51,6 +51,7 @@ jobs:
         with:
           inlineScript: |
             az version
+            az bicep install
             az bicep version
             find . -name "*.bicep" -print -exec az bicep build --file {} \;
 
