@@ -187,7 +187,7 @@ public sealed class PurchaseWorkflowTests(CommerceFixture infrastructure)
     {
         using var envelope = JsonDocument.Parse(row.Body);
         return envelope.RootElement.GetProperty("message").Deserialize<OrderPaidMessage>(
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
     }
 
     private async Task AssertPendingPaymentAsync(Guid paymentId)
