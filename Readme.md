@@ -4,6 +4,8 @@ This repository contains a **production-oriented Order Service** built as a lear
 
 The goal of this project is not to build a “toy app”, but a **realistic backend service** that demonstrates how I design, implement, test, and evolve a system in a professional environment.
 
+Explore the interactive [Commerce Domain Atlas](https://commerce-domain-atlas.sajadre.chatgpt.site) for the domain model, order and payment workflows, and test coverage.
+
 ---
 
 ## 🎯 Project Goals
