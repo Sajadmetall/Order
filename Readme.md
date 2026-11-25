@@ -105,6 +105,41 @@ The intention is:
 
 ## 🚀 Running the Project Locally
 
+### With Docker Compose
+
+Use Docker in Linux container mode with Compose v2. The SQL Server image is for
+x86-64 hosts. Copy `.env.example` to `.env` and set both passwords before starting
+the stack. Use separate local-only passwords. For the SQL password, a prefix of
+`Aa1-` followed by at least 20 random hexadecimal characters provides the
+required character classes and works in the connection string. Keep `.env` out
+of source control.
+
+```bash
+docker compose up --build --wait
+```
+
+Open [Swagger UI](http://localhost:8080/swagger/index.html). Change
+`COMMERCE_API_PORT` in `.env` if port 8080 is already in use.
+
+Compose runs the .NET 10 API, SQL Server 2022 Developer Edition, and RabbitMQ.
+In this local Development setup, the API applies EF Core migrations and seeds
+sample data at startup. SQL Server and RabbitMQ are accessible on the Compose
+network. The API is published on the host loopback interface.
+
+Run `docker compose down` to stop the stack and keep the SQL data. To reset a
+disposable local database, use `docker compose down --volumes`, which deletes its
+data. Keep the SQL password the same while reusing an existing SQL data volume.
+
+CI starts a fresh Compose stack, creates an order over HTTP and reads it back
+from the running API image. The xUnit integration suite continues to use its
+own SQL Server and RabbitMQ instances through Testcontainers.
+
+### With the .NET SDK
+
+Set `ConnectionStrings__DefaultConnection` for your local SQL Server before
+running the API. Configure `RabbitMq__Host`, `RabbitMq__Username` and
+`RabbitMq__Password` for your broker when it differs from the local defaults.
+
 1. Clone the repository
 2. Restore dependencies
 3. Apply EF Core migrations

@@ -1,0 +1,47 @@
+services:
+  api:
+    build: .
+    image: commerce-api:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=OrderDb;User ID=sa;Password=${COMMERCE_SQL_PASSWORD:?Set COMMERCE_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: commerce
+      RabbitMq__Password: "${COMMERCE_RABBITMQ_PASSWORD:?Set COMMERCE_RABBITMQ_PASSWORD}"
+    ports:
+      - "127.0.0.1:${COMMERCE_API_PORT:-8080}:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: "${COMMERCE_SQL_PASSWORD:?Set COMMERCE_SQL_PASSWORD}"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'SQLCMDPASSWORD="$$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -l 3 -b -Q "SELECT 1" -o /dev/null'
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+  rabbitmq:
+    image: rabbitmq:4.2.0-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: commerce
+      RABBITMQ_DEFAULT_PASS: "${COMMERCE_RABBITMQ_PASSWORD:?Set COMMERCE_RABBITMQ_PASSWORD}"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 8s
+      retries: 24
+
+volumes:
+  sqlserver-data:
