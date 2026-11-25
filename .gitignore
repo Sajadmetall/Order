@@ -364,3 +364,5 @@ FodyWeavers.xsd
 
 # Local Docker Compose settings
 /.env
+*.env
+/src/Commerce.Api/.env.example
