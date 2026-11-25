@@ -108,31 +108,64 @@ The intention is:
 ### With Docker Compose
 
 Use Docker in Linux container mode with Compose v2. The SQL Server image is for
-x86-64 hosts. Copy `.env.example` to `.env` and set both passwords before starting
-the stack. Use separate local-only passwords. For the SQL password, a prefix of
-`Aa1-` followed by at least 20 random hexadecimal characters provides the
-required character classes and works in the connection string. Keep `.env` out
-of source control.
+x86-64 hosts. Run the commands from the repository root, using the root
+`compose.yaml` and `Dockerfile`. Copy the root `.env.example` to `.env` and
+set both passwords before starting the stack. Use separate local-only
+passwords. A prefix of `Aa1-` followed by at least 20 random hexadecimal
+characters works for the SQL password. Keep `.env` out of source control.
 
 ```bash
+docker compose config --quiet
 docker compose up --build --wait
 ```
+
+`config --quiet` validates the configuration without printing the resolved
+values. `up --build --wait` builds and starts the stack.
 
 Open [Swagger UI](http://localhost:8080/swagger/index.html). Change
 `COMMERCE_API_PORT` in `.env` if port 8080 is already in use.
 
-Compose runs the .NET 10 API, SQL Server 2022 Developer Edition, and RabbitMQ.
-In this local Development setup, the API applies EF Core migrations and seeds
-sample data at startup. SQL Server and RabbitMQ are accessible on the Compose
-network. The API is published on the host loopback interface.
+The multi-stage Dockerfile builds and publishes the API with the .NET 10 SDK
+and runs it as a non-root user in the ASP.NET Core runtime image. Compose builds
+this image as `commerce-api:local` and starts it alongside SQL Server 2022
+Developer Edition and RabbitMQ. At startup, the Development API applies
+pending EF Core migrations and seeds missing sample data.
+
+| Setting in `.env` | How Compose uses it |
+| --- | --- |
+| `COMMERCE_SQL_PASSWORD` | Sets the SQL container's `MSSQL_SA_PASSWORD` and supplies the same value in the API's `ConnectionStrings__DefaultConnection`. The API connects to `sqlserver,1433`, database `OrderDb`. |
+| `COMMERCE_RABBITMQ_PASSWORD` | Sets `RABBITMQ_DEFAULT_PASS` for the broker's `commerce` user and supplies the same value through `RabbitMq__Password` in the API. |
+| `COMMERCE_API_PORT` | Publishes the API on the host loopback interface. It defaults to 8080 and maps to port 8080 inside the API container. |
+
+Compose injects these settings at runtime. The Docker build excludes `.env`.
+The API reads its connection string as `ConnectionStrings:DefaultConnection`
+through the standard ASP.NET Core configuration provider.
+
+Compose waits for its dependencies before starting the API. The SQL Server
+health check runs `SELECT 1` through `sqlcmd`, and the RabbitMQ health check
+runs `rabbitmq-diagnostics -q check_port_connectivity`. Both run every five
+seconds. The API's `depends_on` entries use `condition: service_healthy`.
+
+After changing the API code, run `docker compose up --build --wait api` to
+rebuild its image and replace the API container when the image changes.
 
 Run `docker compose down` to stop the stack and keep the SQL data. To reset a
 disposable local database, use `docker compose down --volumes`, which deletes its
 data. Keep the SQL password the same while reusing an existing SQL data volume.
 
-CI starts a fresh Compose stack, creates an order over HTTP and reads it back
-from the running API image. The xUnit integration suite continues to use its
-own SQL Server and RabbitMQ instances through Testcontainers.
+### Container smoke test in CI
+
+The [`container-smoke` job](.github/workflows/ci.yml) generates temporary
+passwords and starts the root Compose stack on the GitHub Actions runner. It
+waits for the API's Swagger endpoint, then sends `POST /api/Order` for two items
+at EUR 6.50 each and checks for HTTP 201 and an order ID. It reads the order back
+with `GET /api/Order/{id}` and checks its ID, customer, item, quantity, currency
+and EUR 13 total. CI prints container logs on failure and removes the temporary
+containers and volumes after the run.
+
+The xUnit [integration suite](tests/Commerce.Integration.Tests/README.md) uses
+its own SQL Server and RabbitMQ instances through Testcontainers and covers
+payment behavior and Outbox delivery separately.
 
 ### With the .NET SDK
 
