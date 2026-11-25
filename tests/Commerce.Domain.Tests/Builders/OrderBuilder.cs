@@ -27,7 +27,7 @@ public sealed class OrderBuilder
 
     public Order Build()
     {
-        var order = Order.Create(_customerName);
+        var order = Order.Create(_customerName, DateTimeOffset.UnixEpoch);
 
         foreach (var (name, qty, price) in _items)
         {

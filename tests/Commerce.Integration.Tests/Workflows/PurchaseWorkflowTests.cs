@@ -1,10 +1,16 @@
-using Commerce.Application.Common.Exceptions;
-using MassTransit.EntityFrameworkCoreIntegration;
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
+using Commerce.Application.Common.Exceptions;
+using Commerce.Application.Features.Orders.Commands;
+using Commerce.Application.Features.Orders.Commands.CreateOrder;
 using Commerce.Application.Features.Payments;
+using Commerce.Domain.Common;
 using Commerce.Domain.Payments;
 using Commerce.Infrastructure.Persistence;
 using Commerce.Integration.Tests.Fixtures;
+using MassTransit.EntityFrameworkCoreIntegration;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -15,6 +21,40 @@ namespace Commerce.Integration.Tests.Workflows;
 public sealed class PurchaseWorkflowTests(CommerceFixture infrastructure)
     : PurchaseTestBase(infrastructure), IClassFixture<CommerceFixture>
 {
+    [Fact]
+    public async Task Only_paid_orders_can_ship_and_a_late_payment_replay_preserves_shipment()
+    {
+        var orderId = await CreateOrderAsync();
+        await SendAsync(new ConfirmOrderCommand(orderId));
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() => SendAsync(new ShipOrderCommand(orderId)));
+        Assert.Equal("Confirmed", (await ReadOrderAsync(orderId)).Status);
+
+        var paymentId = await SendAsync(new PreparePaymentCommand(orderId));
+        var attemptId = await SendAsync(new StartPaymentAttemptCommand(paymentId));
+        var result = new SettlePaymentCommand(paymentId, attemptId, 10, "EUR", "shipment-test");
+        await SendAsync(result);
+        await SendAsync(new ShipOrderCommand(orderId));
+        await SendAsync(result);
+
+        Assert.Equal("Shipped", (await ReadOrderAsync(orderId)).Status);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
+        Assert.Equal(1, await context.Set<OutboxMessage>().CountAsync());
+    }
+
+    [Fact]
+    public async Task Creating_an_order_with_mixed_currencies_returns_a_conflict()
+    {
+        var command = new CreateOrderCommand("Integration test customer",
+            [new("First product", 1, 10, "EUR"), new("Second product", 1, 10, "USD")]);
+
+        using var response = await Client.PostAsJsonAsync("/api/Order", command);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.Equal("All order items must use the same currency.", problem?.Detail);
+    }
+
     [Fact]
     public async Task Failed_attempt_then_retry_settles_the_order_and_records_one_purchase_outcome()
     {
@@ -110,7 +150,7 @@ public sealed class PurchaseWorkflowTests(CommerceFixture infrastructure)
         var attempt = await SendAsync(new StartPaymentAttemptCommand(paymentId));
         await SendAsync(new SettlePaymentCommand(paymentId, attempt, 10, "EUR", "original-result"));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => SendAsync(
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() => SendAsync(
             new SettlePaymentCommand(paymentId, attempt, 10, "EUR", "different-result")));
 
         await using var scope = Factory.Services.CreateAsyncScope();
@@ -149,7 +189,7 @@ public sealed class PurchaseWorkflowTests(CommerceFixture infrastructure)
         var paymentId = await SendAsync(new PreparePaymentCommand(orderId));
         await SendAsync(new StartPaymentAttemptCommand(paymentId));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
             SendAsync(new StartPaymentAttemptCommand(paymentId)));
         await AssertPendingPaymentAsync(paymentId);
     }

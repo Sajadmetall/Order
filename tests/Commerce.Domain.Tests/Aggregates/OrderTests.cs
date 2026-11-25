@@ -8,6 +8,7 @@ namespace Commerce.Domain.Tests.Aggregates;
 
 public class OrderTests
 {
+    private static readonly DateTimeOffset CreatedAt = new(2026, 1, 10, 12, 30, 0, TimeSpan.FromHours(1));
     [Fact]
     public void Create_WithValidCustomerName_ShouldCreateOrder()
     {
@@ -15,7 +16,7 @@ public class OrderTests
         var customerName = "John Doe";
 
         // Act
-        var order = Order.Create(customerName);
+        var order = Order.Create(customerName, CreatedAt);
 
         // Assert
         order.Should().NotBeNull();
@@ -23,9 +24,9 @@ public class OrderTests
         order.Status.Should().Be(OrderStatus.Created);
         order.Items.Should().BeEmpty();
 
-        // Generated inside domain: assert "set", not exact value
         order.Id.Should().NotBeNull();
-        order.CreatedAt.Should().NotBe(default);
+        order.CreatedAt.Should().Be(CreatedAt.UtcDateTime);
+        order.CreatedAt.Kind.Should().Be(DateTimeKind.Utc);
     }
 
     [Theory]
@@ -35,7 +36,7 @@ public class OrderTests
     public void Create_WithInvalidCustomerName_ShouldThrowArgumentException(string customerName)
     {
         // Act
-        var act = () => Order.Create(customerName);
+        var act = () => Order.Create(customerName, CreatedAt);
 
         // Assert
         act.Should().Throw<ArgumentException>()
@@ -61,7 +62,7 @@ public class OrderTests
     }
 
     [Fact]
-    public void AddItem_WhenOrderIsNotCreated_ShouldThrowInvalidOperationException()
+    public void AddItem_WhenOrderIsNotCreated_ShouldThrowBusinessRuleViolationException()
     {
         // Arrange
         var order = OrderBuilder.WithOneItem().Build();
@@ -71,12 +72,12 @@ public class OrderTests
         var act = () => order.AddItem("Product B", 1, Money.Create(5m, "EUR"));
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*Created state*");
     }
 
     [Fact]
-    public void Confirm_WhenOrderHasNoItems_ShouldThrowInvalidOperationException()
+    public void Confirm_WhenOrderHasNoItems_ShouldThrowBusinessRuleViolationException()
     {
         // Arrange
         var order = OrderBuilder.Empty().Build();
@@ -85,7 +86,7 @@ public class OrderTests
         var act = () => order.Confirm();
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*at least one item*");
     }
 
@@ -103,7 +104,7 @@ public class OrderTests
     }
 
     [Fact]
-    public void Confirm_WhenOrderIsNotCreated_ShouldThrowInvalidOperationException()
+    public void Confirm_WhenOrderIsNotCreated_ShouldThrowBusinessRuleViolationException()
     {
         // Arrange
         var order = OrderBuilder.WithOneItem().Build();
@@ -113,16 +114,18 @@ public class OrderTests
         var act = () => order.Confirm();
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*Created state*");
     }
 
     [Fact]
-    public void Ship_WhenOrderIsConfirmed_ShouldChangeStatusToShipped()
+    public void Ship_WhenOrderIsPaid_ShouldChangeStatusToShipped()
     {
         // Arrange
         var order = OrderBuilder.WithOneItem().Build();
         order.Confirm();
+
+        order.MarkPaid(order.GetTotal());
 
         // Act
         order.Ship();
@@ -131,18 +134,22 @@ public class OrderTests
         order.Status.Should().Be(OrderStatus.Shipped);
     }
 
-    [Fact]
-    public void Ship_WhenOrderIsNotConfirmed_ShouldThrowInvalidOperationException()
+    [Theory]
+    [InlineData(OrderStatus.Created)]
+    [InlineData(OrderStatus.Confirmed)]
+    public void Ship_WhenOrderIsUnpaid_ShouldThrowBusinessRuleViolationException(OrderStatus status)
     {
         // Arrange
         var order = OrderBuilder.WithOneItem().Build();
-        // status is Created
+        if (status == OrderStatus.Confirmed)
+            order.Confirm();
 
         // Act
         var act = () => order.Ship();
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Confirmed*");
+        act.Should().Throw<BusinessRuleViolationException>()
+            .WithMessage("*paid order*");
+        order.Status.Should().Be(status);
     }
 }

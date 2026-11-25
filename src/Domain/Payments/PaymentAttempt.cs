@@ -1,3 +1,5 @@
+using Commerce.Domain.Common;
+
 namespace Commerce.Domain.Payments;
 
 public sealed class PaymentAttempt
@@ -31,6 +33,6 @@ public sealed class PaymentAttempt
     private void EnsurePending()
     {
         if (Status != PaymentAttemptStatus.Pending)
-            throw new InvalidOperationException("Only a pending payment attempt can be completed.");
+            throw new BusinessRuleViolationException("Only a pending payment attempt can be completed.");
     }
 }

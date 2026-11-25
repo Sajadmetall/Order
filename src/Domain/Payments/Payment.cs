@@ -38,9 +38,9 @@ public sealed class Payment
     public Guid StartAttempt()
     {
         if (IsPaid)
-            throw new InvalidOperationException("A paid payment cannot start another attempt.");
+            throw new BusinessRuleViolationException("A paid payment cannot start another attempt.");
         if (_attempts.Any(attempt => attempt.Status == PaymentAttemptStatus.Pending))
-            throw new InvalidOperationException("A payment attempt is already pending.");
+            throw new BusinessRuleViolationException("A payment attempt is already pending.");
 
         var attempt = new PaymentAttempt();
         _attempts.Add(attempt);

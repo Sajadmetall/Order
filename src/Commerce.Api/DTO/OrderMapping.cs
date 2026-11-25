@@ -29,9 +29,9 @@ namespace Commerce.Api.DTO
                 Items: items
             );
         }
-        public static Commerce.Domain.Orders.Order ToDomain(CreateOrderRequest dto)
+        public static Commerce.Domain.Orders.Order ToDomain(CreateOrderRequest dto, DateTimeOffset createdAt)
         {
-            var order = Commerce.Domain.Orders.Order.Create(dto.CustomerName);
+            var order = Commerce.Domain.Orders.Order.Create(dto.CustomerName, createdAt);
 
             foreach (var item in dto.Items)
             {

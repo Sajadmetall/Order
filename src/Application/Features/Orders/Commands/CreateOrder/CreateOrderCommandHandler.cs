@@ -9,16 +9,18 @@ public sealed class CreateOrderCommandHandler
     : IRequestHandler<CreateOrderCommand, Guid>
 {
     private readonly IApplicationDbContext _context;
+    private readonly TimeProvider _timeProvider;
 
-    public CreateOrderCommandHandler(IApplicationDbContext context)
+    public CreateOrderCommandHandler(IApplicationDbContext context, TimeProvider timeProvider)
     {
         _context = context;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Guid> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
         // 1) Create aggregate root using domain factory
-        var order = Order.Create(request.CustomerName);
+        var order = Order.Create(request.CustomerName, _timeProvider.GetUtcNow());
 
         // 2) Add items using domain method (enforces invariants)
         foreach (var item in request.Items)
