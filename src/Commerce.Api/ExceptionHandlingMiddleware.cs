@@ -1,4 +1,5 @@
 ﻿using Commerce.Application.Common.Exceptions;
+using Commerce.Domain.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -89,7 +90,7 @@ public sealed class ExceptionHandlingMiddleware
                 _logger.LogWarning(ex, "Bad request");
                 break;
 
-            case InvalidOperationException:
+            case BusinessRuleViolationException:
                 statusCode = StatusCodes.Status409Conflict;
                 problem = new ProblemDetails
                 {

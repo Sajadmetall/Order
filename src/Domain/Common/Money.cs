@@ -39,7 +39,7 @@ public sealed record class Money
     private void EnsureSameCurrency(Money other)
     {
         if (Currency != other.Currency)
-            throw new InvalidOperationException("Currencies must match.");
+            throw new BusinessRuleViolationException("Currencies must match.");
     }
 
     public static Money Zero(string currency) => new(0, currency);

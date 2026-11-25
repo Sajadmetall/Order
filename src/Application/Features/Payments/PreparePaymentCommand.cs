@@ -1,5 +1,6 @@
 using Commerce.Application.Abstractions.Persistence;
 using Commerce.Application.Common.Exceptions;
+using Commerce.Domain.Common;
 using Commerce.Domain.Orders;
 using Commerce.Domain.Payments;
 using MediatR;
@@ -27,7 +28,7 @@ public sealed class PreparePaymentCommandHandler(IApplicationDbContext context)
         if (order.Status == OrderStatus.Created)
             order.Confirm();
         if (order.Status != OrderStatus.Confirmed)
-            throw new InvalidOperationException("Only a confirmed order can start payment.");
+            throw new BusinessRuleViolationException("Only a confirmed order can start payment.");
 
         // Derive the expected amount from persisted items, including quantity.
         var payment = Payment.Create(order.Id, order.GetTotal());

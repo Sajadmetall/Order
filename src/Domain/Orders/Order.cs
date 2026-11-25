@@ -16,26 +16,26 @@ public sealed class Order
         // For EF
     }
 
-    private Order(string customerName)
+    private Order(string customerName, DateTimeOffset createdAt)
     {
         if (string.IsNullOrWhiteSpace(customerName))
             throw new ArgumentException("CustomerName is required.", nameof(customerName));
 
         Id = OrderId.New();
         CustomerName = customerName;
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = createdAt.UtcDateTime;
         Status = OrderStatus.Created;
     }
 
-    public static Order Create(string customerName)
-        => new(customerName);
+    public static Order Create(string customerName, DateTimeOffset createdAt)
+        => new(customerName, createdAt);
 
     public void AddItem(string productName, int quantity, Money unitPrice)
     {
         EnsureIsCreated();
 
         if (_items.Count > 0 && _items[0].UnitPrice.Currency != unitPrice.Currency)
-            throw new InvalidOperationException("All order items must use the same currency.");
+            throw new BusinessRuleViolationException("All order items must use the same currency.");
 
         // Order (root) creates internal entity
         _items.Add(new OrderItem(productName, quantity, unitPrice));
@@ -45,14 +45,14 @@ public sealed class Order
     {
         EnsureIsCreated();
         if (_items.Count == 0)
-            throw new InvalidOperationException("Order must have at least one item.");
+            throw new BusinessRuleViolationException("Order must have at least one item.");
         Status = OrderStatus.Confirmed;
     }
 
     public Money GetTotal()
     {
         if (_items.Count == 0)
-            throw new InvalidOperationException("An empty order has no payable total.");
+            throw new BusinessRuleViolationException("An empty order has no payable total.");
 
         return _items.Select(item => item.TotalPrice).Aggregate((total, amount) => total.Add(amount));
     }
@@ -64,21 +64,21 @@ public sealed class Order
         if (Status == OrderStatus.Paid)
             return;
         if (Status != OrderStatus.Confirmed)
-            throw new InvalidOperationException("Only a confirmed order can be paid.");
+            throw new BusinessRuleViolationException("Only a confirmed order can be paid.");
 
         Status = OrderStatus.Paid;
     }
 
     public void Ship()
     {
-        if (Status != OrderStatus.Confirmed)
-            throw new InvalidOperationException("Order can only be shipped when in Confirmed state.");
+        if (Status != OrderStatus.Paid)
+            throw new BusinessRuleViolationException("Only a paid order can be shipped.");
         Status = OrderStatus.Shipped;
     }
 
     private void EnsureIsCreated()
     {
         if (Status != OrderStatus.Created)
-            throw new InvalidOperationException("Order can only be changed in Created state.");
+            throw new BusinessRuleViolationException("Order can only be changed in Created state.");
     }
 }

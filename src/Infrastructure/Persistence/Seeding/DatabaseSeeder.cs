@@ -8,10 +8,12 @@ namespace Commerce.Infrastructure.Persistence.Seeding
     public sealed class DatabaseSeeder
     {
         private readonly OrderDbContext _db;
+        private readonly TimeProvider _timeProvider;
 
-        public DatabaseSeeder(OrderDbContext db)
+        public DatabaseSeeder(OrderDbContext db, TimeProvider timeProvider)
         {
             _db = db;
+            _timeProvider = timeProvider;
         }
 
         public async Task SeedAsync(CancellationToken ct = default)
@@ -54,7 +56,7 @@ namespace Commerce.Infrastructure.Persistence.Seeding
             if (await _db.Orders.AnyAsync(order => order.Id == seedId, ct))
                 return;
 
-            var order = Order.Create(customerName);
+            var order = Order.Create(customerName, _timeProvider.GetUtcNow());
             // The fixed seed identity allows independent additions without matching customer data.
             _db.Entry(order).Property(order => order.Id).CurrentValue = seedId;
             order.AddItem("Premium learning period", quantity, Money.Create(unitPrice, "EUR"));

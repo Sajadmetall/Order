@@ -40,25 +40,25 @@ public sealed class SettlePaymentCommandHandler(
         var payment = await context.Payments.Include(payment => payment.Attempts)
             .SingleOrDefaultAsync(payment => payment.Id == paymentId, cancellationToken)
             ?? throw new NotFoundException("Payment", request.PaymentId);
-        var order = await context.Orders.Include(order => order.Items)
-            .SingleAsync(order => order.Id == payment.OrderId, cancellationToken);
-
         var alreadyPaid = payment.IsPaid;
         var verifiedAmount = Money.Create(request.VerifiedAmount, request.Currency);
         payment.RecordSuccess(request.AttemptId, verifiedAmount, request.ProviderTransactionReference);
+        // A validated replay leaves the order in its current state, including after shipment.
+        if (alreadyPaid)
+            return;
+
+        var order = await context.Orders.Include(order => order.Items)
+            .SingleAsync(order => order.Id == payment.OrderId, cancellationToken);
         order.MarkPaid(verifiedAmount);
 
-        if (!alreadyPaid)
+        await publisher.PublishAsync(new OrderPaidMessage
         {
-            await publisher.PublishAsync(new OrderPaidMessage
-            {
-                OrderId = order.Id.Value,
-                PaymentId = payment.Id.Value,
-                Amount = verifiedAmount.Amount,
-                Currency = verifiedAmount.Currency,
-                OccurredAtUtc = timeProvider.GetUtcNow()
-            }, cancellationToken);
-        }
+            OrderId = order.Id.Value,
+            PaymentId = payment.Id.Value,
+            Amount = verifiedAmount.Amount,
+            Currency = verifiedAmount.Currency,
+            OccurredAtUtc = timeProvider.GetUtcNow()
+        }, cancellationToken);
 
         // One relational SaveChanges transaction commits payment, order and outbox.
         await context.SaveChangesAsync(cancellationToken);

@@ -26,7 +26,7 @@ public sealed class PaymentTests
         Assert.Collection(payment.Attempts,
             attempt => Assert.Equal(PaymentAttemptStatus.Failed, attempt.Status),
             attempt => Assert.Equal(PaymentAttemptStatus.Succeeded, attempt.Status));
-        Assert.Throws<InvalidOperationException>(() => payment.StartAttempt());
+        Assert.Throws<BusinessRuleViolationException>(() => payment.StartAttempt());
     }
 
     [Theory]
@@ -51,13 +51,13 @@ public sealed class PaymentTests
         var payment = Payment.Create(OrderId.New(), amount);
         var attempt = payment.StartAttempt();
 
-        Assert.Throws<InvalidOperationException>(() => payment.StartAttempt());
+        Assert.Throws<BusinessRuleViolationException>(() => payment.StartAttempt());
         payment.RecordSuccess(attempt, amount, "test-transaction");
         payment.RecordSuccess(attempt, amount, "test-transaction");
 
         Assert.Equal("test-transaction", Assert.Single(payment.Attempts).ProviderTransactionReference);
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<BusinessRuleViolationException>(() =>
             payment.RecordSuccess(attempt, amount, "conflicting-transaction"));
-        Assert.Throws<InvalidOperationException>(() => payment.RecordFailure(attempt));
+        Assert.Throws<BusinessRuleViolationException>(() => payment.RecordFailure(attempt));
     }
 }

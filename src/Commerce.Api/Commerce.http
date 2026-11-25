@@ -1,6 +1,18 @@
 @Order_HostAddress = http://localhost:5266
 
-GET {{Order_HostAddress}}/weatherforecast/
-Accept: application/json
+POST {{Order_HostAddress}}/api/Order
+Content-Type: application/json
+
+{
+  "customerName": "Sample customer",
+  "items": [
+    {
+      "productName": "Notebook",
+      "quantity": 2,
+      "unitPriceAmount": 6.50,
+      "unitPriceCurrency": "EUR"
+    }
+  ]
+}
 
 ###

@@ -18,35 +18,22 @@ The goal of this project is not to build a “toy app”, but a **realistic back
 
 ## 🏗 Architecture Overview
 
-The solution follows a layered architecture inspired by **DDD + Clean Architecture**:
+The solution follows a layered architecture inspired by **DDD + Clean Architecture**.
 
-/src
-├── Domain
-│ ├── Entities
-│ ├── ValueObjects
-│ ├── Aggregates
-│ └── Domain Rules & Invariants
-│
-├── Application
-│ ├── Commands
-│ ├── Queries
-│ ├── CommandHandlers
-│ ├── QueryHandlers
-│ └── Abstractions (Interfaces)
-│
-├── Infrastructure
-│ ├── Persistence (EF Core)
-│ ├── Entity Configurations
-│ └── Repositories
-│
-└── Api
-└── REST Endpoints
+| Path | Responsibility |
+| --- | --- |
+| [`src/Domain`](src/Domain) | Order and Payment aggregates under `Orders` and `Payments`, with shared types such as `Money` in `Common`. |
+| [`src/Application`](src/Application) | MediatR commands and queries under `Features`, plus persistence and messaging abstractions. |
+| [`src/Infrastructure`](src/Infrastructure) | SQL Server, EF Core mappings and migrations, MassTransit Outbox and RabbitMQ. |
+| [`src/Commerce.Api`](src/Commerce.Api) | HTTP endpoints, request handling and application startup. |
+| [`tests`](tests) | Domain unit tests and integration tests. |
+| [`infra`](infra) | Azure Bicep templates and deployment scripts. CI validates Bicep. |
 
 ### Key Architectural Decisions
 
 - **Domain layer has no dependency** on EF Core or infrastructure concerns  
 - **CQRS** is implemented using command/query separation  
-- **Repositories** are used only on the write side  
+- Reads and writes use `IApplicationDbContext`. EF Core commits changes to Orders, Payments and the Outbox in one transaction.
 - EF Core mappings are isolated using `IEntityTypeConfiguration`  
 - Value Objects (e.g. `Money`) enforce business invariants at creation time  
 
@@ -57,9 +44,20 @@ The solution follows a layered architecture inspired by **DDD + Clean Architectu
 Commerce is one bounded context. The Domain project organizes its model into
 `Commerce.Domain.Orders` and `Commerce.Domain.Payments`, with `Money` shared
 inside that context. Orders owns the existing `Order` aggregate and its items.
-The separate `Payment` aggregate references an order by `OrderId` and models
-failed and successful attempts. The payment module currently runs as a domain
-model suitable for simulated scenarios.
+The separate `Payment` aggregate references the order by `OrderId` and tracks
+payment attempts.
+
+The order can progress from `Created` to `Confirmed`, `Paid`, and `Shipped`.
+The application has internal commands for confirmation, payment preparation,
+starting and failing attempts, settlement, and shipment. Only a paid order can
+ship. Replaying the same verified settlement preserves shipment. The initial
+settlement records one purchase outcome.
+
+`SettlePaymentCommand` accepts a trusted payment outcome. The handler commits the
+order and payment changes alongside `OrderPaidMessage` in the MassTransit EF Bus
+Outbox. MassTransit delivers the recorded message to RabbitMQ after the commit.
+The public HTTP API supports order creation and retrieval. Provider checkout,
+callback verification, and public payment endpoints are future work.
 
 ## 🧠 Domain Model Highlights
 
@@ -96,7 +94,11 @@ The intention is:
 - **.NET** (latest LTS)
 - **C#**
 - **Entity Framework Core**
+- **SQL Server** for persistence
 - **MediatR** (CQRS)
+- **MassTransit 8.5.12**, **EF Bus Outbox** and **RabbitMQ** for messaging
+- **Docker Compose** for local development and container smoke tests
+- **Azure Bicep** for infrastructure definitions under `infra/`
 - **xUnit**
 - **FluentAssertions**
 - **REST API**
@@ -139,6 +141,9 @@ own SQL Server and RabbitMQ instances through Testcontainers.
 Set `ConnectionStrings__DefaultConnection` for your local SQL Server before
 running the API. Configure `RabbitMq__Host`, `RabbitMq__Username` and
 `RabbitMq__Password` for your broker when it differs from the local defaults.
+The local SQL Express and RabbitMQ credential defaults are available in
+`Development` only. Other environments must explicitly configure the SQL
+connection string and RabbitMQ host, username and password before startup.
 
 1. Clone the repository
 2. Restore dependencies
